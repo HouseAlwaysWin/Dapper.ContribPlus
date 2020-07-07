@@ -9,6 +9,7 @@ using System.Linq;
 using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
+using Dapper;
 
 namespace Dapper.ContribPlus
 {
@@ -29,6 +30,7 @@ namespace Dapper.ContribPlus
         private static readonly ConcurrentDictionary<RuntimeTypeHandle, IEnumerable<PropertyInfo>> ExplicitKeyProperties = new ConcurrentDictionary<RuntimeTypeHandle, IEnumerable<PropertyInfo>>();
         private static readonly ConcurrentDictionary<RuntimeTypeHandle, IEnumerable<PropertyInfo>> TypeProperties = new ConcurrentDictionary<RuntimeTypeHandle, IEnumerable<PropertyInfo>>();
         private static readonly ConcurrentDictionary<RuntimeTypeHandle, IEnumerable<PropertyInfo>> ComputedProperties = new ConcurrentDictionary<RuntimeTypeHandle, IEnumerable<PropertyInfo>>();
+        private static readonly ConcurrentDictionary<RuntimeTypeHandle, IEnumerable<PropertyInfo>> WhereProperties = new ConcurrentDictionary<RuntimeTypeHandle, IEnumerable<PropertyInfo>>();
         private static readonly ConcurrentDictionary<RuntimeTypeHandle, string> GetQueries = new ConcurrentDictionary<RuntimeTypeHandle, string>();
         private static readonly ConcurrentDictionary<RuntimeTypeHandle, string> TypeTableName = new ConcurrentDictionary<RuntimeTypeHandle, string>();
 
@@ -91,6 +93,20 @@ namespace Dapper.ContribPlus
 
             KeyProperties[type.TypeHandle] = keyProperties;
             return keyProperties;
+        }
+
+        private static List<PropertyInfo> WherePropertiesCache(Type type)
+        {
+            if (WhereProperties.TryGetValue(type.TypeHandle, out IEnumerable<PropertyInfo> pi))
+            {
+                return pi.ToList();
+            }
+
+            var allProperties = TypePropertiesCache(type);
+            var whereProperties = allProperties.Where(p => p.GetCustomAttributes(true).Any(a => a is WhereAttribute)).ToList();
+
+            WhereProperties[type.TypeHandle] = whereProperties;
+            return whereProperties;
         }
 
         private static List<PropertyInfo> TypePropertiesCache(Type type)
@@ -350,6 +366,103 @@ namespace Dapper.ContribPlus
                 list.Add(obj);
             }
             return list;
+        }
+
+        /// <summary>
+        /// Returns a  list of pagination entites from table "Ts".  
+        /// Id of T must be marked with [Key] attribute.
+        /// Entities created from interfaces are tracked/intercepted for changes and used by the Update() extension
+        /// for optimal performance. 
+        /// </summary>
+        /// <typeparam name="T">Interface or type to create and populate</typeparam>
+        /// <param name="connection">Open SqlConnection</param>
+        /// <param name="transaction">The transaction to run under, null (the default) if none</param>
+        /// <param name="commandTimeout">Number of seconds before command execution timeout</param>
+        /// <returns>Entity of T</returns>
+        public static (int totalCount, IEnumerable<T> data) GetListByPaging<T>(this IDbConnection connection, object param, int currentPage, int itemsPerPage, IDbTransaction transaction = null, int? commandTimeout = null) where T : class
+        {
+            var type = typeof(T);
+            var cacheType = typeof(List<T>);
+
+            if (!GetQueries.TryGetValue(cacheType.TypeHandle, out string sql))
+            {
+                var whereProp = WherePropertiesCache(type);
+                var name = GetTableName(type);
+                var adapter = GetFormatter(connection);
+                StringBuilder sqlCountBuilder = new StringBuilder("SELECT COUNT(*) FROM ");
+                sqlCountBuilder.Append(name);
+                StringBuilder sqlDataBuilder = new StringBuilder("SELECT * FROM ");
+                sqlDataBuilder.Append(name);
+                if (whereProp.Count > 0)
+                {
+                    for (int i = 0; i < whereProp.Count; i++)
+                    {
+                        var prop = whereProp[i];
+                        sqlDataBuilder.Append(" ");
+                        sqlCountBuilder.Append(" ");
+
+                        sqlDataBuilder.Append(prop.Name);
+                        sqlCountBuilder.Append(prop.Name);
+
+                        sqlDataBuilder.Append("=@");
+                        sqlCountBuilder.Append("=@");
+
+                        sqlDataBuilder.Append(prop.Name);
+                        sqlCountBuilder.Append(prop.Name);
+
+                        if (i != (whereProp.Count - 1))
+                        {
+                            sqlDataBuilder.Append(" AND ");
+                            sqlCountBuilder.Append(" AND ");
+                        }
+                    }
+                    sqlDataBuilder.AppendLine(adapter.GetPagingSql(currentPage, itemsPerPage));
+                    sqlDataBuilder.AppendLine(sqlCountBuilder.ToString());
+                }
+                else
+                {
+                    throw new DataException($"GetListByPaged() at least have one property with where attribute");
+                }
+                GetQueries[cacheType.TypeHandle] = sql;
+            }
+
+            int totalCount = 0;
+            IEnumerable<T> data = null;
+            SqlMapper.GridReader result = null;
+            if (!type.IsInterface)
+            {
+                result = connection.QueryMultiple(sql, param, transaction, commandTimeout: commandTimeout);
+                totalCount = result.Read<int>().First();
+                data = result.Read<T>();
+                return (totalCount, data);
+            }
+
+            result = connection.QueryMultiple(sql, param);
+            totalCount = result.Read<int>().First();
+            data = result.Read<T>();
+
+            var list = new List<T>();
+            foreach (IDictionary<string, object> res in data)
+            {
+                var obj = ProxyGenerator.GetInterfaceProxy<T>();
+                foreach (var property in TypePropertiesCache(type))
+                {
+                    var val = res[property.Name];
+                    if (val == null) continue;
+                    if (property.PropertyType.IsGenericType && property.PropertyType.GetGenericTypeDefinition() == typeof(Nullable<>))
+                    {
+                        var genericType = Nullable.GetUnderlyingType(property.PropertyType);
+                        if (genericType != null) property.SetValue(obj, Convert.ChangeType(val, genericType), null);
+                    }
+                    else
+                    {
+                        property.SetValue(obj, Convert.ChangeType(val, property.PropertyType), null);
+                    }
+                }
+                ((IProxy)obj).IsDirty = false;   //reset change tracking and return
+                list.Add(obj);
+            }
+            return (totalCount, list);
         }
 
         /// <summary>

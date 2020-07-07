@@ -75,6 +75,9 @@ namespace Dapper.ContribPlus.DbAdapters
 
 
 
+
+
+
         /// <summary>
         /// Adds the name of a column.
         /// </summary>
@@ -93,6 +96,12 @@ namespace Dapper.ContribPlus.DbAdapters
         public void AppendColumnNameEqualsValue(StringBuilder sb, string columnName)
         {
             sb.AppendFormat("[{0}] = @{1}", columnName, columnName);
+        }
+
+        public string GetPagingSql(int currentPage, int itemsPerPage)
+        {
+            int totalItems = (currentPage - 1) * itemsPerPage;
+            return $"OFFSET {totalItems} FETCH NEXT {itemsPerPage} ROWS ONLY";
         }
     }
 }
