@@ -27,7 +27,7 @@ namespace Dapper.ContribPlus.DbAdapters
         /// <returns>The Id of the row created.</returns>
         public int Insert(IDbConnection connection, IDbTransaction transaction, int? commandTimeout, string tableName, string columnList, string parameterList, IEnumerable<PropertyInfo> keyProperties, object entityToInsert)
         {
-            var cmd = $"insert into {tableName} ({columnList}) values ({parameterList});select SCOPE_IDENTITY() id";
+            var cmd = $"INSERT INTO {tableName} ({columnList}) VALUES ({parameterList});SELECT SCOPE_IDENTITY() id";
             var multi = connection.QueryMultiple(cmd, entityToInsert, transaction, commandTimeout);
 
             var first = multi.Read().FirstOrDefault();
@@ -57,7 +57,7 @@ namespace Dapper.ContribPlus.DbAdapters
         /// <returns>The Id of the row created.</returns>
         public async Task<int> InsertAsync(IDbConnection connection, IDbTransaction transaction, int? commandTimeout, string tableName, string columnList, string parameterList, IEnumerable<PropertyInfo> keyProperties, object entityToInsert)
         {
-            var cmd = $"INSERT INTO {tableName} ({columnList}) values ({parameterList}); SELECT SCOPE_IDENTITY() id";
+            var cmd = $"INSERT INTO {tableName} ({columnList}) VALUES ({parameterList}); SELECT SCOPE_IDENTITY() id";
             var multi = await connection.QueryMultipleAsync(cmd, entityToInsert, transaction, commandTimeout).ConfigureAwait(false);
 
             var first = multi.Read().FirstOrDefault();

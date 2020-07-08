@@ -5,7 +5,7 @@ using System.Text;
 namespace Dapper.ContribPlus.Attributes
 {
     [AttributeUsage(AttributeTargets.Property)]
-    public class WhereAttribute
+    public class WhereAttribute : Attribute
     {
     }
 }
