@@ -143,7 +143,7 @@ namespace Dapper.ContribPlus
         /// <param name="transaction">The transaction to run under, null (the default) if none</param>
         /// <param name="commandTimeout">Number of seconds before command execution timeout</param>
         /// <returns>Entity of T</returns>
-        public static (int totalCount, IEnumerable<T> data) GetListByPaging<T>(this IDbConnection connection, object param, int currentPage, int itemsPerPage, IDbTransaction transaction = null, int? commandTimeout = null) where T : class
+        public static (int totalCount, IEnumerable<T> data) GetListByPaging<T>(this IDbConnection connection, int currentPage, int itemsPerPage, object param = null, IDbTransaction transaction = null, int? commandTimeout = null) where T : class
         {
             var type = typeof(T);
             var cacheType = typeof(List<T>);
@@ -151,14 +151,30 @@ namespace Dapper.ContribPlus
             if (!GetQueries.TryGetValue(cacheType.TypeHandle, out string sql))
             {
                 var whereProp = WherePropertiesCache(type);
+                var orderByProp = OrderByPropertiesCache(type).FirstOrDefault();
                 var name = GetTableName(type);
                 var adapter = GetFormatter(connection);
+                string orderByCol = string.Empty;
+
+                if (orderByProp == null)
+                {
+                    orderByCol = GetSingleKey<T>(nameof(GetListByPaging)).Name;
+                }
+                else
+                {
+                    orderByCol = orderByProp.Name;
+                }
+
+                StringBuilder orderByBuilder = new StringBuilder();
                 StringBuilder sqlCountBuilder = new StringBuilder("SELECT COUNT(*) FROM ");
                 sqlCountBuilder.Append(name);
                 StringBuilder sqlDataBuilder = new StringBuilder("SELECT * FROM ");
                 sqlDataBuilder.Append(name);
+
                 if (whereProp.Count > 0)
                 {
+                    sqlCountBuilder.Append(" WHERE ");
+                    sqlDataBuilder.Append(" WHERE ");
                     for (int i = 0; i < whereProp.Count; i++)
                     {
                         var prop = whereProp[i];
@@ -180,13 +196,10 @@ namespace Dapper.ContribPlus
                             sqlCountBuilder.Append(" AND ");
                         }
                     }
-                    sqlDataBuilder.AppendLine(adapter.GetPagingSql(currentPage, itemsPerPage));
-                    sqlDataBuilder.AppendLine(sqlCountBuilder.ToString());
                 }
-                else
-                {
-                    throw new DataException($"GetListByPaged() at least have one property with where attribute");
-                }
+                sqlDataBuilder.AppendLine(adapter.GetPagingSql(orderByCol, currentPage, itemsPerPage));
+                sqlDataBuilder.AppendLine(sqlCountBuilder.ToString());
+                sql = sqlDataBuilder.ToString();
                 GetQueries[cacheType.TypeHandle] = sql;
             }
 
@@ -196,8 +209,8 @@ namespace Dapper.ContribPlus
             if (!type.IsInterface)
             {
                 result = connection.QueryMultiple(sql, param, transaction, commandTimeout: commandTimeout);
-                totalCount = result.Read<int>().First();
                 data = result.Read<T>();
+                totalCount = result.Read<int>().First();
                 return (totalCount, data);
             }
 

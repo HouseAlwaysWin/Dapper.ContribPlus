@@ -92,7 +92,7 @@ namespace Dapper.ContribPlus.DbAdapters
             sb.AppendFormat("`{0}` = @{1}", columnName, columnName);
         }
 
-        public string GetPagingSql(int currentPage, int itemsPerPage)
+        public string GetPagingSql(string column, int currentPage, int itemsPerPage)
         {
             throw new NotImplementedException();
         }

@@ -98,10 +98,10 @@ namespace Dapper.ContribPlus.DbAdapters
             sb.AppendFormat("[{0}] = @{1}", columnName, columnName);
         }
 
-        public string GetPagingSql(int currentPage, int itemsPerPage)
+        public string GetPagingSql(string column, int currentPage, int itemsPerPage)
         {
             int totalItems = (currentPage - 1) * itemsPerPage;
-            return $"OFFSET {totalItems} FETCH NEXT {itemsPerPage} ROWS ONLY";
+            return $" ORDER BY {column} OFFSET {totalItems} ROWS FETCH NEXT {itemsPerPage} ROWS ONLY ";
         }
     }
 }

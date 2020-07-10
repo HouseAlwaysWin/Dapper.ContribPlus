@@ -28,6 +28,7 @@ namespace Dapper.ContribPlus
         private static readonly ConcurrentDictionary<RuntimeTypeHandle, IEnumerable<PropertyInfo>> TypeProperties = new ConcurrentDictionary<RuntimeTypeHandle, IEnumerable<PropertyInfo>>();
         private static readonly ConcurrentDictionary<RuntimeTypeHandle, IEnumerable<PropertyInfo>> ComputedProperties = new ConcurrentDictionary<RuntimeTypeHandle, IEnumerable<PropertyInfo>>();
         private static readonly ConcurrentDictionary<RuntimeTypeHandle, IEnumerable<PropertyInfo>> WhereProperties = new ConcurrentDictionary<RuntimeTypeHandle, IEnumerable<PropertyInfo>>();
+        private static readonly ConcurrentDictionary<RuntimeTypeHandle, IEnumerable<PropertyInfo>> OrderByProperties = new ConcurrentDictionary<RuntimeTypeHandle, IEnumerable<PropertyInfo>>();
         private static readonly ConcurrentDictionary<RuntimeTypeHandle, string> GetQueries = new ConcurrentDictionary<RuntimeTypeHandle, string>();
         private static readonly ConcurrentDictionary<RuntimeTypeHandle, string> TypeTableName = new ConcurrentDictionary<RuntimeTypeHandle, string>();
 
@@ -104,6 +105,20 @@ namespace Dapper.ContribPlus
 
             WhereProperties[type.TypeHandle] = whereProperties;
             return whereProperties;
+        }
+
+        private static List<PropertyInfo> OrderByPropertiesCache(Type type)
+        {
+            if (OrderByProperties.TryGetValue(type.TypeHandle, out IEnumerable<PropertyInfo> pi))
+            {
+                return pi.ToList();
+            }
+
+            var allProperties = TypePropertiesCache(type);
+            var orderByProperties = allProperties.Where(p => p.GetCustomAttributes(true).Any(a => a is OrderByAttribute)).ToList();
+
+            OrderByProperties[type.TypeHandle] = orderByProperties;
+            return orderByProperties;
         }
 
         private static List<PropertyInfo> TypePropertiesCache(Type type)
