@@ -6,6 +6,7 @@ using System.Reflection;
 using Dapper.ContribPlus;
 using Dapper.ContribPlus.Tests.Models;
 using System.Linq;
+using System.Diagnostics;
 
 namespace Dapper.ContribPlus.Tests
 {
@@ -29,10 +30,31 @@ namespace Dapper.ContribPlus.Tests
                 )
 
                INSERT INTO  [dbo].[Test] VALUES ('a')
+               INSERT INTO  [dbo].[Test] VALUES ('a')
+               INSERT INTO  [dbo].[Test] VALUES ('a')
+               INSERT INTO  [dbo].[Test] VALUES ('a')
+               INSERT INTO  [dbo].[Test] VALUES ('a')
+               INSERT INTO  [dbo].[Test] VALUES ('a')
+               INSERT INTO  [dbo].[Test] VALUES ('b')
+               INSERT INTO  [dbo].[Test] VALUES ('b')
+               INSERT INTO  [dbo].[Test] VALUES ('b')
+               INSERT INTO  [dbo].[Test] VALUES ('b')
                INSERT INTO  [dbo].[Test] VALUES ('b')
                INSERT INTO  [dbo].[Test] VALUES ('c')
+               INSERT INTO  [dbo].[Test] VALUES ('c')
+               INSERT INTO  [dbo].[Test] VALUES ('c')
+               INSERT INTO  [dbo].[Test] VALUES ('c')
+               INSERT INTO  [dbo].[Test] VALUES ('d')
+               INSERT INTO  [dbo].[Test] VALUES ('d')
+               INSERT INTO  [dbo].[Test] VALUES ('d')
                INSERT INTO  [dbo].[Test] VALUES ('d')
                INSERT INTO  [dbo].[Test] VALUES ('e')
+               INSERT INTO  [dbo].[Test] VALUES ('e')
+               INSERT INTO  [dbo].[Test] VALUES ('e')
+               INSERT INTO  [dbo].[Test] VALUES ('e')
+               INSERT INTO  [dbo].[Test] VALUES ('f')
+               INSERT INTO  [dbo].[Test] VALUES ('f')
+               INSERT INTO  [dbo].[Test] VALUES ('f')
                INSERT INTO  [dbo].[Test] VALUES ('f')
                INSERT INTO  [dbo].[Test] VALUES ('g')
                INSERT INTO  [dbo].[Test] VALUES ('h')
@@ -49,15 +71,17 @@ namespace Dapper.ContribPlus.Tests
                INSERT INTO  [dbo].[Test] VALUES ('s')
                INSERT INTO  [dbo].[Test] VALUES ('t')
             ";
+
             using (var conn = new SqlConnection(connectionString))
             {
+                conn.Execute("IF OBJECT_ID('[dbo].[Test]', 'U') IS NOT NULL DROP TABLE[dbo].[Test]");
                 conn.Execute(sql);
             }
         }
 
 
         [Test]
-        public void IsValidGetPaging_CorrectListAndTotalCount_10ItemAnd20TotalCount()
+        public void IsValidGetPagingTotalCount_CorrectListAndTotalCount_10ItemAnd20TotalCount()
         {
             InitialData();
 
@@ -65,8 +89,12 @@ namespace Dapper.ContribPlus.Tests
             {
                 var result = conn.GetListByPaging<Test>(2, 10);
                 Assert.AreEqual(10, result.data.Count());
-                Assert.AreEqual(20, result.totalCount);
-                conn.Execute("DELETE Test");
+                Assert.AreEqual(41, result.totalCount);
+                result = conn.GetListByPaging<Test>(2, 3, new { Name = "a" });
+                Assert.AreEqual(3, result.data.Count());
+                Assert.AreEqual(6, result.totalCount);
+
+                conn.Execute("DROP TABLE [dbo].[Test]");
                 Assert.Pass();
             }
         }

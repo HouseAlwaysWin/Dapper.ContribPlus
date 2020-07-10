@@ -10,6 +10,7 @@ namespace Dapper.ContribPlus.Tests.Models
     {
         [Key]
         public int Id { get; set; }
+        [Where]
         public string Name { get; set; }
     }
 }
