@@ -50,6 +50,6 @@ namespace Dapper.ContribPlus.DbAdapters
         /// <param name="columnName">The column name.</param>
         void AppendColumnNameEqualsValue(StringBuilder sb, string columnName);
 
-        string GetPagingSql(string column, int currentPage, int itemsPerPage);
+        string GetPagingSql(string column, int currentPage, int itemsPerPage, bool isDesc);
     }
 }

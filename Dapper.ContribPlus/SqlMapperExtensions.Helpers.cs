@@ -143,6 +143,15 @@ namespace Dapper.ContribPlus
             return writeAttribute.Write;
         }
 
+        private static bool IsOrderByDesc(PropertyInfo pi)
+        {
+            var attributes = pi.GetCustomAttributes(typeof(OrderByAttribute), false).AsList();
+            if (attributes.Count != 1) return true;
+
+            var orderByAttribute = (OrderByAttribute)attributes[0];
+            return orderByAttribute.IsDesc;
+        }
+
         private static PropertyInfo GetSingleKey<T>(string method)
         {
             var type = typeof(T);

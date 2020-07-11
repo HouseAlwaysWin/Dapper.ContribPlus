@@ -151,6 +151,7 @@ namespace Dapper.ContribPlus
             var name = GetTableName(type);
             var adapter = GetFormatter(connection);
             string orderByCol = string.Empty;
+            bool isDesc = false;
 
             if (orderByProp == null)
             {
@@ -159,6 +160,7 @@ namespace Dapper.ContribPlus
             else
             {
                 orderByCol = orderByProp.Name;
+                isDesc = IsOrderByDesc(orderByProp);
             }
             StringBuilder cacheStringBuilder = new StringBuilder(string.Format("{0}_{1}_{2}_{3}", type.Name, currentPage, itemsPerPage, orderByCol));
 
@@ -179,7 +181,7 @@ namespace Dapper.ContribPlus
                 }
 
                 sqlDataBuilder.Append(conditionSql);
-                sqlDataBuilder.AppendLine(adapter.GetPagingSql(orderByCol, currentPage, itemsPerPage));
+                sqlDataBuilder.AppendLine(adapter.GetPagingSql(orderByCol, currentPage, itemsPerPage, isDesc));
                 sqlDataBuilder.AppendLine(" SELECT COUNT(*) FROM ");
                 sqlDataBuilder.Append(name);
                 sqlDataBuilder.Append(conditionSql);

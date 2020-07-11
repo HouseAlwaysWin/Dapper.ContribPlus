@@ -20,61 +20,62 @@ namespace Dapper.ContribPlus.Tests
             connectionString = $"Data Source=(LocalDB)\\MSSQLLocalDB;AttachDbFilename={currentPath};Integrated Security=True";
         }
 
-        private void InitialData()
+        private void InitialData(string tableName)
         {
-            string sql = @"
-                CREATE TABLE [dbo].[Test]
+            string sql = @$"
+                CREATE TABLE [dbo].[{tableName}]
                 (
                     [Id] INT NOT NULL PRIMARY KEY IDENTITY,
-                    [Name] NVARCHAR NULL
+                    [Name] NVARCHAR NULL,
+                    [CreatedDate] datetime NOT NULL DEFAULT  GETDATE()
                 )
 
-               INSERT INTO  [dbo].[Test] VALUES ('a')
-               INSERT INTO  [dbo].[Test] VALUES ('a')
-               INSERT INTO  [dbo].[Test] VALUES ('a')
-               INSERT INTO  [dbo].[Test] VALUES ('a')
-               INSERT INTO  [dbo].[Test] VALUES ('a')
-               INSERT INTO  [dbo].[Test] VALUES ('a')
-               INSERT INTO  [dbo].[Test] VALUES ('b')
-               INSERT INTO  [dbo].[Test] VALUES ('b')
-               INSERT INTO  [dbo].[Test] VALUES ('b')
-               INSERT INTO  [dbo].[Test] VALUES ('b')
-               INSERT INTO  [dbo].[Test] VALUES ('b')
-               INSERT INTO  [dbo].[Test] VALUES ('c')
-               INSERT INTO  [dbo].[Test] VALUES ('c')
-               INSERT INTO  [dbo].[Test] VALUES ('c')
-               INSERT INTO  [dbo].[Test] VALUES ('c')
-               INSERT INTO  [dbo].[Test] VALUES ('d')
-               INSERT INTO  [dbo].[Test] VALUES ('d')
-               INSERT INTO  [dbo].[Test] VALUES ('d')
-               INSERT INTO  [dbo].[Test] VALUES ('d')
-               INSERT INTO  [dbo].[Test] VALUES ('e')
-               INSERT INTO  [dbo].[Test] VALUES ('e')
-               INSERT INTO  [dbo].[Test] VALUES ('e')
-               INSERT INTO  [dbo].[Test] VALUES ('e')
-               INSERT INTO  [dbo].[Test] VALUES ('f')
-               INSERT INTO  [dbo].[Test] VALUES ('f')
-               INSERT INTO  [dbo].[Test] VALUES ('f')
-               INSERT INTO  [dbo].[Test] VALUES ('f')
-               INSERT INTO  [dbo].[Test] VALUES ('g')
-               INSERT INTO  [dbo].[Test] VALUES ('h')
-               INSERT INTO  [dbo].[Test] VALUES ('i')
-               INSERT INTO  [dbo].[Test] VALUES ('j')
-               INSERT INTO  [dbo].[Test] VALUES ('k')
-               INSERT INTO  [dbo].[Test] VALUES ('l')
-               INSERT INTO  [dbo].[Test] VALUES ('m')
-               INSERT INTO  [dbo].[Test] VALUES ('n')
-               INSERT INTO  [dbo].[Test] VALUES ('o')
-               INSERT INTO  [dbo].[Test] VALUES ('p')
-               INSERT INTO  [dbo].[Test] VALUES ('q')
-               INSERT INTO  [dbo].[Test] VALUES ('r')
-               INSERT INTO  [dbo].[Test] VALUES ('s')
-               INSERT INTO  [dbo].[Test] VALUES ('t')
+               INSERT INTO  [dbo].[{tableName}] VALUES ('a','2007-04-30 13:10:02')
+               INSERT INTO  [dbo].[{tableName}] VALUES ('a','2007-05-31 13:10:02')
+               INSERT INTO  [dbo].[{tableName}] VALUES ('a','2007-01-30 11:11:11')
+               INSERT INTO  [dbo].[{tableName}] VALUES ('a','2007-02-28 11:11:11')
+               INSERT INTO  [dbo].[{tableName}] VALUES ('a','2007-03-30 11:11:11')
+               INSERT INTO  [dbo].[{tableName}] VALUES ('a','2007-05-30 11:11:11')
+               INSERT INTO  [dbo].[{tableName}] VALUES ('b','2007-07-30 11:11:11')
+               INSERT INTO  [dbo].[{tableName}] VALUES ('b','2007-06-30 11:11:11')
+               INSERT INTO  [dbo].[{tableName}] VALUES ('b','2013-08-30 11:11:11')
+               INSERT INTO  [dbo].[{tableName}] VALUES ('b','2015-09-30 11:11:11')
+               INSERT INTO  [dbo].[{tableName}] VALUES ('b','2007-07-30 11:11:11')
+               INSERT INTO  [dbo].[{tableName}] VALUES ('c','2007-08-30 11:11:11')
+               INSERT INTO  [dbo].[{tableName}] VALUES ('c','2007-03-30 11:11:11')
+               INSERT INTO  [dbo].[{tableName}] VALUES ('c','2007-02-01 11:11:11')
+               INSERT INTO  [dbo].[{tableName}] VALUES ('c','2007-01-30 11:11:11')
+               INSERT INTO  [dbo].[{tableName}] VALUES ('d','2007-10-30 11:11:11')
+               INSERT INTO  [dbo].[{tableName}] VALUES ('d','2007-11-30 11:11:11')
+               INSERT INTO  [dbo].[{tableName}] VALUES ('d','2007-12-30 11:11:11')
+               INSERT INTO  [dbo].[{tableName}] VALUES ('d','2008-09-30 11:11:11')
+               INSERT INTO  [dbo].[{tableName}] VALUES ('e','2018-02-28 11:11:11')
+               INSERT INTO  [dbo].[{tableName}] VALUES ('e','2007-03-30 11:11:11')
+               INSERT INTO  [dbo].[{tableName}] VALUES ('e','2007-04-30 11:11:11')
+               INSERT INTO  [dbo].[{tableName}] VALUES ('e','2007-05-30 11:11:11')
+               INSERT INTO  [dbo].[{tableName}] VALUES ('f','2007-06-30 11:11:11')
+               INSERT INTO  [dbo].[{tableName}] VALUES ('f','2017-07-30 11:11:11')
+               INSERT INTO  [dbo].[{tableName}] VALUES ('f','2019-08-30 11:11:11')
+               INSERT INTO  [dbo].[{tableName}] VALUES ('f','2007-06-30 11:11:11')
+               INSERT INTO  [dbo].[{tableName}] VALUES ('g','2007-09-30 11:11:11')
+               INSERT INTO  [dbo].[{tableName}] VALUES ('h','2007-03-30 11:11:11')
+               INSERT INTO  [dbo].[{tableName}] VALUES ('i','2018-05-30 11:11:11')
+               INSERT INTO  [dbo].[{tableName}] VALUES ('j','2002-07-30 11:11:11')
+               INSERT INTO  [dbo].[{tableName}] VALUES ('k','2003-03-30 11:11:11')
+               INSERT INTO  [dbo].[{tableName}] VALUES ('l','2005-04-30 11:11:11')
+               INSERT INTO  [dbo].[{tableName}] VALUES ('m','2008-01-30 11:11:11')
+               INSERT INTO  [dbo].[{tableName}] VALUES ('n','2000-02-28 11:11:11')
+               INSERT INTO  [dbo].[{tableName}] VALUES ('o','2001-06-30 11:11:11')
+               INSERT INTO  [dbo].[{tableName}] VALUES ('p','2007-09-30 11:11:11')
+               INSERT INTO  [dbo].[{tableName}] VALUES ('q','2002-10-30 11:11:11')
+               INSERT INTO  [dbo].[{tableName}] VALUES ('r','2007-11-30 11:11:11')
+               INSERT INTO  [dbo].[{tableName}] VALUES ('s','2020-05-30 11:11:11')
+               INSERT INTO  [dbo].[{tableName}] VALUES ('t','2010-06-30 11:11:11')
             ";
 
             using (var conn = new SqlConnection(connectionString))
             {
-                conn.Execute("IF OBJECT_ID('[dbo].[Test]', 'U') IS NOT NULL DROP TABLE[dbo].[Test]");
+                conn.Execute($"IF OBJECT_ID('[dbo].[{tableName}]', 'U') IS NOT NULL DROP TABLE[dbo].[{tableName}]");
                 conn.Execute(sql);
             }
         }
@@ -83,7 +84,7 @@ namespace Dapper.ContribPlus.Tests
         [Test]
         public void IsValidGetPagingTotalCount_CorrectListAndTotalCount_10ItemAnd20TotalCount()
         {
-            InitialData();
+            InitialData("Test");
 
             using (var conn = new SqlConnection(connectionString))
             {
@@ -103,7 +104,7 @@ namespace Dapper.ContribPlus.Tests
         [Test]
         public void IsValidItemsPerPage_CorrectItemContent()
         {
-            InitialData();
+            InitialData("Test");
 
             using (var conn = new SqlConnection(connectionString))
             {
@@ -118,6 +119,27 @@ namespace Dapper.ContribPlus.Tests
                 conn.Execute("DROP TABLE [dbo].[Test]");
                 Assert.Pass();
             }
+        }
+
+        [Test]
+        public void IsValidOrderByAttribute_OrderbyName()
+        {
+            InitialData("TestOrderBy");
+
+            using (var conn = new SqlConnection(connectionString))
+            {
+                var result = conn.GetListByPaging<TestOrderBy>(1, 10);
+                Assert.AreEqual("a", result.data.ToList()[0].Name);
+                Assert.AreEqual("a", result.data.ToList()[1].Name);
+
+                result = conn.GetListByPaging<TestOrderBy>(2, 6);
+                Assert.AreEqual("b", result.data.ToList()[0].Name);
+                Assert.AreEqual("c", result.data.ToList()[5].Name);
+
+                conn.Execute("DROP TABLE [dbo].[Test]");
+                Assert.Pass();
+            }
+
         }
     }
 }
