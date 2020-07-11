@@ -193,6 +193,35 @@ namespace Dapper.ContribPlus
             return name;
         }
 
+        private static void GetConditionSql(
+            List<PropertyInfo> whereProp,
+            ref StringBuilder sqlCountBuilder, ref StringBuilder sqlDataBuilder)
+        {
+            sqlCountBuilder.Append(" WHERE ");
+            sqlDataBuilder.Append(" WHERE ");
+            for (int i = 0; i < whereProp.Count; i++)
+            {
+                var prop = whereProp[i];
+                sqlDataBuilder.Append(" ");
+                sqlCountBuilder.Append(" ");
+
+                sqlDataBuilder.Append(prop.Name);
+                sqlCountBuilder.Append(prop.Name);
+
+                sqlDataBuilder.Append("=@");
+                sqlCountBuilder.Append("=@");
+
+                sqlDataBuilder.Append(prop.Name);
+                sqlCountBuilder.Append(prop.Name);
+
+                if (i != (whereProp.Count - 1))
+                {
+                    sqlDataBuilder.Append(" AND ");
+                    sqlCountBuilder.Append(" AND ");
+                }
+            }
+        }
+
         /// <summary>
         /// Specifies a custom callback that detects the database type instead of relying on the default strategy (the name of the connection type object).
         /// Please note that this callback is global and will be used by all the calls that require a database specific adapter.

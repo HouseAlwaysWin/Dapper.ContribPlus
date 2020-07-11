@@ -146,9 +146,6 @@ namespace Dapper.ContribPlus
         public static (int totalCount, IEnumerable<T> data) GetListByPaging<T>(this IDbConnection connection, int currentPage, int itemsPerPage, object param = null, IDbTransaction transaction = null, int? commandTimeout = null) where T : class
         {
             var type = typeof(T);
-            //var cacheType = typeof(List<T>);
-
-
             var whereProp = WherePropertiesCache(type);
             var orderByProp = OrderByPropertiesCache(type).FirstOrDefault();
             var name = GetTableName(type);
@@ -163,46 +160,30 @@ namespace Dapper.ContribPlus
             {
                 orderByCol = orderByProp.Name;
             }
-            string cacheSqlString = string.Format("{0}_{1}_{2}_{3}", type.Name, currentPage, itemsPerPage, orderByCol);
+            StringBuilder cacheStringBuilder = new StringBuilder(string.Format("{0}_{1}_{2}_{3}", type.Name, currentPage, itemsPerPage, orderByCol));
 
             StringBuilder orderByBuilder = new StringBuilder();
             StringBuilder sqlCountBuilder = new StringBuilder("SELECT COUNT(*) FROM ");
             sqlCountBuilder.Append(name);
             StringBuilder sqlDataBuilder = new StringBuilder("SELECT * FROM ");
             sqlDataBuilder.Append(name);
-
-            if (whereProp.Count > 0 && param != null)
+            foreach (var prop in whereProp)
             {
-                sqlCountBuilder.Append(" WHERE ");
-                sqlDataBuilder.Append(" WHERE ");
-                for (int i = 0; i < whereProp.Count; i++)
-                {
-                    var prop = whereProp[i];
-                    sqlDataBuilder.Append(" ");
-                    sqlCountBuilder.Append(" ");
-
-                    sqlDataBuilder.Append(prop.Name);
-                    sqlCountBuilder.Append(prop.Name);
-
-                    sqlDataBuilder.Append("=@");
-                    sqlCountBuilder.Append("=@");
-
-                    sqlDataBuilder.Append(prop.Name);
-                    sqlCountBuilder.Append(prop.Name);
-
-                    if (i != (whereProp.Count - 1))
-                    {
-                        sqlDataBuilder.Append(" AND ");
-                        sqlCountBuilder.Append(" AND ");
-                    }
-                }
+                cacheStringBuilder.Append("_");
+                cacheStringBuilder.Append(prop.Name);
             }
-            if (!GetSqlQueries.TryGetValue(cacheSqlString, out string sql))
+
+            if (!GetSqlQueries.TryGetValue(cacheStringBuilder.ToString(), out string sql))
             {
+                if (whereProp.Count > 0 && param != null)
+                {
+
+                    GetConditionSql(whereProp, ref sqlDataBuilder, ref sqlCountBuilder);
+                }
                 sqlDataBuilder.AppendLine(adapter.GetPagingSql(orderByCol, currentPage, itemsPerPage));
                 sqlDataBuilder.AppendLine(sqlCountBuilder.ToString());
                 sql = sqlDataBuilder.ToString();
-                GetSqlQueries[cacheSqlString] = sql;
+                GetSqlQueries[cacheStringBuilder.ToString()] = sql;
             }
 
             int totalCount = 0;
