@@ -193,33 +193,29 @@ namespace Dapper.ContribPlus
             return name;
         }
 
-        private static void GetConditionSql(
-            List<PropertyInfo> whereProp,
-            ref StringBuilder sqlCountBuilder, ref StringBuilder sqlDataBuilder)
+        private static string GetConditionSql(
+            List<PropertyInfo> whereProp)
         {
-            sqlCountBuilder.Append(" WHERE ");
+            StringBuilder sqlDataBuilder = new StringBuilder();
             sqlDataBuilder.Append(" WHERE ");
             for (int i = 0; i < whereProp.Count; i++)
             {
                 var prop = whereProp[i];
                 sqlDataBuilder.Append(" ");
-                sqlCountBuilder.Append(" ");
 
                 sqlDataBuilder.Append(prop.Name);
-                sqlCountBuilder.Append(prop.Name);
 
                 sqlDataBuilder.Append("=@");
-                sqlCountBuilder.Append("=@");
 
                 sqlDataBuilder.Append(prop.Name);
-                sqlCountBuilder.Append(prop.Name);
 
                 if (i != (whereProp.Count - 1))
                 {
                     sqlDataBuilder.Append(" AND ");
-                    sqlCountBuilder.Append(" AND ");
                 }
             }
+
+            return sqlDataBuilder.ToString();
         }
 
         /// <summary>

@@ -162,9 +162,6 @@ namespace Dapper.ContribPlus
             }
             StringBuilder cacheStringBuilder = new StringBuilder(string.Format("{0}_{1}_{2}_{3}", type.Name, currentPage, itemsPerPage, orderByCol));
 
-            StringBuilder orderByBuilder = new StringBuilder();
-            StringBuilder sqlCountBuilder = new StringBuilder("SELECT COUNT(*) FROM ");
-            sqlCountBuilder.Append(name);
             StringBuilder sqlDataBuilder = new StringBuilder("SELECT * FROM ");
             sqlDataBuilder.Append(name);
             foreach (var prop in whereProp)
@@ -175,13 +172,18 @@ namespace Dapper.ContribPlus
 
             if (!GetSqlQueries.TryGetValue(cacheStringBuilder.ToString(), out string sql))
             {
+                string conditionSql = string.Empty;
                 if (whereProp.Count > 0 && param != null)
                 {
-
-                    GetConditionSql(whereProp, ref sqlDataBuilder, ref sqlCountBuilder);
+                    conditionSql = GetConditionSql(whereProp);
                 }
+
+                sqlDataBuilder.Append(conditionSql);
                 sqlDataBuilder.AppendLine(adapter.GetPagingSql(orderByCol, currentPage, itemsPerPage));
-                sqlDataBuilder.AppendLine(sqlCountBuilder.ToString());
+                sqlDataBuilder.AppendLine(" SELECT COUNT(*) FROM ");
+                sqlDataBuilder.Append(name);
+                sqlDataBuilder.Append(conditionSql);
+
                 sql = sqlDataBuilder.ToString();
                 GetSqlQueries[cacheStringBuilder.ToString()] = sql;
             }
