@@ -94,20 +94,6 @@ namespace Dapper.ContribPlus
             return keyProperties;
         }
 
-        private static List<PropertyInfo> WherePropertiesCache(Type type)
-        {
-            if (WhereProperties.TryGetValue(type.TypeHandle, out IEnumerable<PropertyInfo> pi))
-            {
-                return pi.ToList();
-            }
-
-            var allProperties = TypePropertiesCache(type);
-            var whereProperties = allProperties.Where(p => p.GetCustomAttributes(true).Any(a => a is WhereAttribute)).ToList();
-
-            WhereProperties[type.TypeHandle] = whereProperties;
-            return whereProperties;
-        }
-
         private static List<PropertyInfo> OrderByPropertiesCache(Type type)
         {
             if (OrderByProperties.TryGetValue(type.TypeHandle, out IEnumerable<PropertyInfo> pi))
@@ -200,6 +186,12 @@ namespace Dapper.ContribPlus
 
             TypeTableName[type.TypeHandle] = name;
             return name;
+        }
+
+        private static IEnumerable<PropertyInfo> GetAllProperties<T>(T obj) where T : class
+        {
+            if (obj == null) return new PropertyInfo[0];
+            return obj.GetType().GetProperties();
         }
 
         private static string GetConditionSql(
