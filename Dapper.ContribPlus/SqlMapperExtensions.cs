@@ -146,7 +146,7 @@ namespace Dapper.ContribPlus
         public static (int totalCount, IEnumerable<T> data) GetListByPaging<T>(this IDbConnection connection, int currentPage, int itemsPerPage, object param = null, IDbTransaction transaction = null, int? commandTimeout = null) where T : class
         {
             var type = typeof(T);
-            var whereProp = WherePropertiesCache(type);
+            var paramAllProp = GetAllProperties(param);
             var orderByProp = OrderByPropertiesCache(type).FirstOrDefault();
             var name = GetTableName(type);
             var adapter = GetFormatter(connection);
@@ -166,18 +166,21 @@ namespace Dapper.ContribPlus
 
             StringBuilder sqlDataBuilder = new StringBuilder("SELECT * FROM ");
             sqlDataBuilder.Append(name);
-            foreach (var prop in whereProp)
+            if (paramAllProp != null)
             {
-                cacheStringBuilder.Append("_");
-                cacheStringBuilder.Append(prop.Name);
+                foreach (var prop in paramAllProp)
+                {
+                    cacheStringBuilder.Append("_");
+                    cacheStringBuilder.Append(prop.Name);
+                }
             }
 
             if (!GetSqlQueries.TryGetValue(cacheStringBuilder.ToString(), out string sql))
             {
                 string conditionSql = string.Empty;
-                if (whereProp.Count > 0 && param != null)
+                if (paramAllProp.Count() > 0 && param != null)
                 {
-                    conditionSql = GetConditionSql(whereProp);
+                    conditionSql = GetConditionSql(paramAllProp.ToList());
                 }
 
                 sqlDataBuilder.Append(conditionSql);

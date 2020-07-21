@@ -10,7 +10,7 @@ using System.Diagnostics;
 
 namespace Dapper.ContribPlus.Tests
 {
-    public class CRUDTests
+    public class SqlServerTest
     {
         private string currentPath = Path.GetDirectoryName(AppDomain.CurrentDomain.BaseDirectory) + "\\testDB.mdf";
         private string connectionString;
@@ -136,7 +136,7 @@ namespace Dapper.ContribPlus.Tests
                 Assert.AreEqual("a", result.data.ToList()[0].Name);
                 Assert.AreEqual("a", result.data.ToList()[5].Name);
 
-                conn.Execute("DROP TABLE [dbo].[Test]");
+                conn.Execute("DROP TABLE [dbo].[TestOrderBy]");
                 Assert.Pass();
             }
 
