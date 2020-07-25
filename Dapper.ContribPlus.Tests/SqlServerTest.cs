@@ -7,6 +7,7 @@ using Dapper.ContribPlus;
 using Dapper.ContribPlus.Tests.Models;
 using System.Linq;
 using System.Diagnostics;
+using System.Threading.Tasks;
 
 namespace Dapper.ContribPlus.Tests
 {
@@ -102,6 +103,31 @@ namespace Dapper.ContribPlus.Tests
         }
 
         [Test]
+        public void IsValidGetPagingTotalCount_CorrectListAndTotalCount_10ItemAnd20TotalCount_Acync()
+        {
+            InitialData("Test");
+
+            using (var conn = new SqlConnection(connectionString))
+            {
+
+                Task.Run(async () =>
+                {
+                    var result = conn.GetListByPagingAsync<Test>(2, 10).Result;
+                    Assert.AreEqual(10, result.data.Count());
+                    Assert.AreEqual(41, result.totalCount);
+
+                    result = conn.GetListByPaging<Test>(2, 3, new { Name = "a" });
+                    Assert.AreEqual(3, result.data.Count());
+                    Assert.AreEqual(6, result.totalCount);
+
+                    conn.Execute("DROP TABLE [dbo].[Test]");
+                    Assert.Pass();
+                }).GetAwaiter().GetResult();
+
+            }
+        }
+
+        [Test]
         public void IsValidItemsPerPage_CorrectItemContent()
         {
             InitialData("Test");
@@ -118,6 +144,29 @@ namespace Dapper.ContribPlus.Tests
 
                 conn.Execute("DROP TABLE [dbo].[Test]");
                 Assert.Pass();
+            }
+        }
+
+        [Test]
+        public void IsValidItemsPerPage_CorrectItemContent_Async()
+        {
+            InitialData("Test");
+
+            using (var conn = new SqlConnection(connectionString))
+            {
+                Task.Run(async () =>
+                {
+                    var result = conn.GetListByPaging<Test>(1, 10);
+                    Assert.AreEqual("a", result.data.ToList()[0].Name);
+                    Assert.AreEqual("a", result.data.ToList()[1].Name);
+
+                    result = conn.GetListByPaging<Test>(2, 6);
+                    Assert.AreEqual("b", result.data.ToList()[0].Name);
+                    Assert.AreEqual("c", result.data.ToList()[5].Name);
+
+                    conn.Execute("DROP TABLE [dbo].[Test]");
+                    Assert.Pass();
+                }).GetAwaiter().GetResult();
             }
         }
 
@@ -139,7 +188,31 @@ namespace Dapper.ContribPlus.Tests
                 conn.Execute("DROP TABLE [dbo].[TestOrderBy]");
                 Assert.Pass();
             }
+        }
 
+
+        [Test]
+        public void IsValidOrderByAttribute_OrderbyName_Async()
+        {
+            InitialData("TestOrderBy");
+
+            using (var conn = new SqlConnection(connectionString))
+            {
+                Task.Run(async () =>
+                {
+                    var result = conn.GetListByPaging<TestOrderBy>(1, 10);
+                    Assert.AreEqual("n", result.data.ToList()[0].Name);
+                    Assert.AreEqual("o", result.data.ToList()[1].Name);
+
+                    result = conn.GetListByPaging<TestOrderBy>(2, 6);
+                    Assert.AreEqual("a", result.data.ToList()[0].Name);
+                    Assert.AreEqual("a", result.data.ToList()[5].Name);
+
+                    conn.Execute("DROP TABLE [dbo].[TestOrderBy]");
+                    Assert.Pass();
+                }).GetAwaiter().GetResult();
+
+            }
         }
     }
 }
