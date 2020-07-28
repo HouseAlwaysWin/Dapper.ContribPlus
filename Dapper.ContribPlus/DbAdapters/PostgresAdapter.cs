@@ -132,7 +132,9 @@ namespace Dapper.ContribPlus.DbAdapters
 
         public string GetPagingSql(string column, int currentPage, int itemsPerPage, bool isDesc)
         {
-            throw new NotImplementedException();
+            string desc = isDesc ? "DESC" : "ASC";
+            int totalItems = (currentPage - 1) * itemsPerPage;
+            return $" ORDER BY {column} {desc} OFFSET {totalItems} LIMIT {itemsPerPage} ";
         }
     }
 }

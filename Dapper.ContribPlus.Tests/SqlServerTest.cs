@@ -12,7 +12,7 @@ namespace Dapper.ContribPlus.Tests
 {
     public class SqlServerTest
     {
-        private string currentPath = Path.GetDirectoryName(AppDomain.CurrentDomain.BaseDirectory) + "\\testDB.mdf";
+        private string currentPath = Path.GetDirectoryName(AppDomain.CurrentDomain.BaseDirectory) + "\\sqlServerDB.mdf";
         private string connectionString;
         [SetUp]
         public void Setup()
