@@ -134,7 +134,7 @@ namespace Dapper.ContribPlus.DbAdapters
         {
             string desc = isDesc ? "DESC" : "ASC";
             int totalItems = (currentPage - 1) * itemsPerPage;
-            return $" ORDER BY {column} {desc} OFFSET {totalItems} LIMIT {itemsPerPage} ";
+            return $" ORDER BY {column} {desc} OFFSET {totalItems} LIMIT {itemsPerPage};";
         }
     }
 }
