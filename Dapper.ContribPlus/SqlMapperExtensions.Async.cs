@@ -101,6 +101,85 @@ namespace Dapper.ContribPlus
             return GetAllAsyncImpl<T>(connection, transaction, commandTimeout, sql, type);
         }
 
+
+        /// <summary>
+        /// Returns a list of entites from table "Ts".
+        /// Id of T must be marked with [Key] attribute.
+        /// Entities created from interfaces are tracked/intercepted for changes and used by the Update() extension
+        /// for optimal performance.
+        /// </summary>
+        /// <typeparam name="T">Interface or type to create and populate</typeparam>
+        /// <param name="connection">Open SqlConnection</param>
+        /// <param name="transaction">The transaction to run under, null (the default) if none</param>
+        /// <param name="commandTimeout">Number of seconds before command execution timeout</param>
+        /// <returns>Entity of T</returns>
+        public static Task<(int totalCount, IEnumerable<T> data)> GetListByPagingAsync<T>(this IDbConnection connection, int currentPage, int itemsPerPage, object param = null, IDbTransaction transaction = null, int? commandTimeout = null) where T : class
+        {
+            var type = typeof(T);
+            var cacheType = typeof(List<T>);
+            var paramAllProp = GetAllProperties(param);
+            var orderByProp = OrderByPropertiesCache(type).FirstOrDefault();
+            var name = GetTableName(type);
+            var adapter = GetFormatter(connection);
+            string orderByCol = string.Empty;
+            bool isDesc = false;
+
+            if (orderByProp == null)
+            {
+                orderByCol = GetSingleKey<T>(nameof(GetListByPaging)).Name;
+            }
+            else
+            {
+                orderByCol = orderByProp.Name;
+                isDesc = IsOrderByDesc(orderByProp);
+            }
+            StringBuilder cacheStringBuilder = new StringBuilder(string.Format("{0}_{1}_{2}_{3}", type.Name, currentPage, itemsPerPage, orderByCol));
+
+            StringBuilder sqlDataBuilder = new StringBuilder("SELECT * FROM ");
+
+            sqlDataBuilder.Append(name);
+            if (paramAllProp != null)
+            {
+                foreach (var prop in paramAllProp)
+                {
+                    cacheStringBuilder.Append("_");
+                    cacheStringBuilder.Append(prop.Name);
+                }
+            }
+
+            if (!GetSqlQueries.TryGetValue(cacheStringBuilder.ToString(), out string sql))
+            {
+                string conditionSql = string.Empty;
+                if (paramAllProp.Count() > 0 && param != null)
+                {
+                    conditionSql = GetConditionSql(paramAllProp.ToList());
+                }
+
+                sqlDataBuilder.Append(conditionSql);
+                sqlDataBuilder.AppendLine(adapter.GetPagingSql(orderByCol, currentPage, itemsPerPage, isDesc));
+                sqlDataBuilder.AppendLine(" SELECT COUNT(*) FROM ");
+                sqlDataBuilder.Append(name);
+                sqlDataBuilder.Append(conditionSql);
+
+                sql = sqlDataBuilder.ToString();
+                GetSqlQueries[cacheStringBuilder.ToString()] = sql;
+            }
+
+
+            int totalCount = 0;
+            IEnumerable<T> data = null;
+            SqlMapper.GridReader result = null;
+            if (!type.IsInterface)
+            {
+                result = connection.QueryMultipleAsync(sql, param, transaction, commandTimeout: commandTimeout).Result;
+                data = result.Read<T>();
+                totalCount = result.Read<int>().First();
+                return Task.FromResult((totalCount, data));
+            }
+
+            return GetAllAsyncByPagingImpl<T>(connection, param, transaction, commandTimeout, sql, type);
+        }
+
         private static async Task<IEnumerable<T>> GetAllAsyncImpl<T>(IDbConnection connection, IDbTransaction transaction, int? commandTimeout, string sql, Type type) where T : class
         {
             var result = await connection.QueryAsync(sql).ConfigureAwait(false);
@@ -128,8 +207,39 @@ namespace Dapper.ContribPlus
             return list;
         }
 
+        private static async Task<(int totalCount, IEnumerable<T>)> GetAllAsyncByPagingImpl<T>(IDbConnection connection, object param, IDbTransaction transaction, int? commandTimeout, string sql, Type type) where T : class
+        {
+            var result = await connection.QueryMultipleAsync(sql, param).ConfigureAwait(false);
+            var data = result.Read<T>();
+            var totalCount = result.Read<int>().First();
 
-       
+            var list = new List<T>();
+            foreach (IDictionary<string, object> res in data)
+            {
+                var obj = ProxyGenerator.GetInterfaceProxy<T>();
+                foreach (var property in TypePropertiesCache(type))
+                {
+                    var val = res[property.Name];
+                    if (val == null) continue;
+                    if (property.PropertyType.IsGenericType && property.PropertyType.GetGenericTypeDefinition() == typeof(Nullable<>))
+                    {
+                        var genericType = Nullable.GetUnderlyingType(property.PropertyType);
+                        if (genericType != null) property.SetValue(obj, Convert.ChangeType(val, genericType), null);
+                    }
+                    else
+                    {
+                        property.SetValue(obj, Convert.ChangeType(val, property.PropertyType), null);
+                    }
+                }
+                ((IProxy)obj).IsDirty = false;   //reset change tracking and return
+                list.Add(obj);
+            }
+            return (totalCount, list);
+        }
+
+
+
+
 
         /// <summary>
         /// Inserts an entity into table "Ts" asynchronously using Task and returns identity id.
@@ -142,7 +252,7 @@ namespace Dapper.ContribPlus
         /// <param name="sqlAdapter">The specific ISqlAdapter to use, auto-detected based on connection if null</param>
         /// <returns>Identity of inserted entity</returns>
         public static Task<int> InsertAsync<T>(this IDbConnection connection, T entityToInsert, IDbTransaction transaction = null,
-            int? commandTimeout = null, ISqlAdapter sqlAdapter = null) where T : class
+        int? commandTimeout = null, ISqlAdapter sqlAdapter = null) where T : class
         {
             var type = typeof(T);
             sqlAdapter = sqlAdapter ?? GetFormatter(connection);
