@@ -18,12 +18,14 @@ namespace Dapper.ContribPlus.Tests
         [SetUp]
         public void Setup()
         {
-            connectionString = $"Data Source=(LocalDB)\\MSSQLLocalDB;AttachDbFilename={currentPath};Integrated Security=True";
+            //connectionString = $"Data Source=(LocalDB)\\MSSQLLocalDB;AttachDbFilename={currentPath};Integrated Security=True";
+            connectionString = $"Server=AA010064;Integrated Security=True";
         }
 
         private void InitialData(string tableName)
         {
             string sql = @$"
+
                 CREATE TABLE [dbo].[{tableName}]
                 (
                     [Id] INT NOT NULL PRIMARY KEY IDENTITY,
@@ -76,6 +78,11 @@ namespace Dapper.ContribPlus.Tests
 
             using (var conn = new SqlConnection(connectionString))
             {
+                conn.Execute(@$" IF NOT EXISTS (SELECT * FROM sys.databases WHERE name = '{tableName}')
+                BEGIN
+                  CREATE DATABASE {tableName}
+                END ");
+
                 conn.Execute($"IF OBJECT_ID('[dbo].[{tableName}]', 'U') IS NOT NULL DROP TABLE[dbo].[{tableName}]");
                 conn.Execute(sql);
             }

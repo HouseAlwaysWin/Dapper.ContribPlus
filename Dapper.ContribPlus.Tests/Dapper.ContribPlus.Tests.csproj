@@ -18,10 +18,4 @@
     <ProjectReference Include="..\Dapper.ContribPlus\Dapper.ContribPlus.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
-    <None Update="sqlServerDB.mdf">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-  </ItemGroup>
-
 </Project>

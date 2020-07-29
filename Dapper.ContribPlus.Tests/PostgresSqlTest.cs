@@ -39,9 +39,9 @@ namespace Dapper.ContribPlus.Tests
                INSERT INTO  {tableName} (name,createddate) VALUES ('b','2007-06-30 11:11:11');
                INSERT INTO  {tableName} (name,createddate) VALUES ('b','2013-08-30 11:11:11');
                INSERT INTO  {tableName} (name,createddate) VALUES ('b','2015-09-30 11:11:11');
-               INSERT INTO  {tableName} (name,createddate) VALUES ('b','2007-07-30 11:11:11');
+               INSERT INTO  {tableName} (name,createddate) VALUES ('b','2007-08-01 11:11:11');
                INSERT INTO  {tableName} (name,createddate) VALUES ('c','2007-08-30 11:11:11');
-               INSERT INTO  {tableName} (name,createddate) VALUES ('c','2007-03-30 11:11:11');
+               INSERT INTO  {tableName} (name,createddate) VALUES ('c','2007-04-01 11:11:11');
                INSERT INTO  {tableName} (name,createddate) VALUES ('c','2007-02-01 11:11:11');
                INSERT INTO  {tableName} (name,createddate) VALUES ('c','2007-01-30 11:11:11');
                INSERT INTO  {tableName} (name,createddate) VALUES ('d','2007-10-30 11:11:11');
@@ -184,7 +184,7 @@ namespace Dapper.ContribPlus.Tests
                 Assert.AreEqual("a", result.data.ToList()[0].Name);
                 Assert.AreEqual("a", result.data.ToList()[5].Name);
 
-                conn.Execute("DROP TABLE Test");
+                conn.Execute("DROP TABLE TestOrderBy");
                 Assert.Pass();
             }
         }
@@ -207,7 +207,7 @@ namespace Dapper.ContribPlus.Tests
                     Assert.AreEqual("a", result.data.ToList()[0].Name);
                     Assert.AreEqual("a", result.data.ToList()[5].Name);
 
-                    conn.Execute("DROP TABLE Test");
+                    conn.Execute("DROP TABLE TestOrderBy");
                     Assert.Pass();
                 }).GetAwaiter().GetResult();
 
