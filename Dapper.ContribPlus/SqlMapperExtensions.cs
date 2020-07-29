@@ -143,7 +143,7 @@ namespace Dapper.ContribPlus
         /// <param name="transaction">The transaction to run under, null (the default) if none</param>
         /// <param name="commandTimeout">Number of seconds before command execution timeout</param>
         /// <returns>Entity of T</returns>
-        public static (int totalCount, IEnumerable<T> data) GetListByPaging<T>(this IDbConnection connection, int currentPage, int itemsPerPage, object param = null, IDbTransaction transaction = null, int? commandTimeout = null) where T : class
+        public static (int totalCount, IEnumerable<T> data) GetPagination<T>(this IDbConnection connection, int currentPage, int itemsPerPage, object param = null, IDbTransaction transaction = null, int? commandTimeout = null) where T : class
         {
             var type = typeof(T);
             var paramAllProp = GetAllProperties(param);
@@ -155,7 +155,7 @@ namespace Dapper.ContribPlus
 
             if (orderByProp == null)
             {
-                orderByCol = GetSingleKey<T>(nameof(GetListByPaging)).Name;
+                orderByCol = GetSingleKey<T>(nameof(GetPagination)).Name;
             }
             else
             {
@@ -163,8 +163,10 @@ namespace Dapper.ContribPlus
                 isDesc = IsOrderByDesc(orderByProp);
             }
             StringBuilder cacheStringBuilder = new StringBuilder(string.Format("{0}_{1}_{2}_{3}", type.Name, currentPage, itemsPerPage, orderByCol));
+            StringBuilder cacheCountStringBuilder = new StringBuilder(string.Format("{0}_{1}_{2}_{3}_count", type.Name, currentPage, itemsPerPage, orderByCol));
 
             StringBuilder sqlDataBuilder = new StringBuilder("SELECT * FROM ");
+            StringBuilder sqlDataCountBuilder = new StringBuilder("SELECT COUNT(*) FROM ");
             sqlDataBuilder.Append(name);
             if (paramAllProp != null)
             {
@@ -175,9 +177,9 @@ namespace Dapper.ContribPlus
                 }
             }
 
+            string conditionSql = string.Empty;
             if (!GetSqlQueries.TryGetValue(cacheStringBuilder.ToString(), out string sql))
             {
-                string conditionSql = string.Empty;
                 if (paramAllProp.Count() > 0 && param != null)
                 {
                     conditionSql = GetConditionSql(paramAllProp.ToList());
@@ -185,28 +187,38 @@ namespace Dapper.ContribPlus
 
                 sqlDataBuilder.Append(conditionSql);
                 sqlDataBuilder.AppendLine(adapter.GetPagingSql(orderByCol, currentPage, itemsPerPage, isDesc));
-                sqlDataBuilder.AppendLine(" SELECT COUNT(*) FROM ");
-                sqlDataBuilder.Append(name);
-                sqlDataBuilder.Append(conditionSql);
 
                 sql = sqlDataBuilder.ToString();
                 GetSqlQueries[cacheStringBuilder.ToString()] = sql;
+
             }
+
+            if (!GetSqlQueries.TryGetValue(cacheCountStringBuilder.ToString(), out string countSql))
+            {
+                if (paramAllProp.Count() > 0 && param != null)
+                {
+                    conditionSql = GetConditionSql(paramAllProp.ToList());
+                }
+                sqlDataCountBuilder.Append(name);
+                sqlDataCountBuilder.Append(conditionSql);
+                countSql = sqlDataCountBuilder.ToString();
+                GetSqlQueries[sqlDataCountBuilder.ToString()] = countSql;
+            }
+
 
             int totalCount = 0;
             IEnumerable<T> data = null;
-            SqlMapper.GridReader result = null;
+
             if (!type.IsInterface)
             {
-                result = connection.QueryMultiple(sql, param, transaction, commandTimeout: commandTimeout);
-                data = result.Read<T>();
-                totalCount = result.Read<int>().First();
+                data = connection.Query<T>(sql, param, transaction, commandTimeout: commandTimeout);
+                totalCount = connection.QueryFirst<int>(countSql, param, transaction, commandTimeout: commandTimeout);
+
                 return (totalCount, data);
             }
 
-            result = connection.QueryMultiple(sql, param);
-            totalCount = result.Read<int>().First();
-            data = result.Read<T>();
+            data = connection.Query<T>(sql, param, transaction, commandTimeout: commandTimeout);
+            totalCount = connection.QueryFirst<int>(countSql, param, transaction, commandTimeout: commandTimeout);
 
             var list = new List<T>();
             foreach (IDictionary<string, object> res in data)

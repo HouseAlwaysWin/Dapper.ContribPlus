@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace Dapper.ContribPlus.Tests
 {
@@ -15,7 +16,7 @@ namespace Dapper.ContribPlus.Tests
         [SetUp]
         public void Setup()
         {
-            connectionString = $"Host=localhost;Port=5432;Username=admin;Password=123456;Database=postgres";
+            connectionString = $"Host=localhost;Port=5432;Username=postgres;Password=123456;Database=postgres";
         }
 
         private void InitialData(string tableName)
@@ -25,7 +26,7 @@ namespace Dapper.ContribPlus.Tests
                 (
                     Id INT NOT NULL PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
                     Name VARCHAR NULL,
-                    CreatedDate time NOT NULL DEFAULT now()
+                    CreatedDate date NOT NULL DEFAULT now()
                 );
 
                INSERT INTO  {tableName} (name,createddate) VALUES ('a','2007-04-30 13:10:02');
@@ -84,18 +85,132 @@ namespace Dapper.ContribPlus.Tests
         {
             InitialData("Test");
 
-            using (var conn = new Npgsql.NpgsqlConnection(connectionString))
+            using (var conn = new NpgsqlConnection(connectionString))
             {
-                var result = conn.GetListByPaging<Test>(2, 10);
+                var result = conn.GetPagination<Test>(2, 10);
                 Assert.AreEqual(10, result.data.Count());
                 Assert.AreEqual(41, result.totalCount);
 
-                result = conn.GetListByPaging<Test>(2, 3, new { Name = "a" });
+                result = conn.GetPagination<Test>(2, 3, new { Name = "a" });
                 Assert.AreEqual(3, result.data.Count());
                 Assert.AreEqual(6, result.totalCount);
 
-                conn.Execute("DROP TABLE [dbo].[Test]");
+                conn.Execute("DROP TABLE Test");
                 Assert.Pass();
+            }
+        }
+
+
+        [Test]
+        public void IsValidGetPagingTotalCount_CorrectListAndTotalCount_10ItemAnd20TotalCount_Acync()
+        {
+            InitialData("Test");
+
+            using (var conn = new NpgsqlConnection(connectionString))
+            {
+
+                Task.Run(async () =>
+                {
+                    var result = conn.GetPaginationAsync<Test>(2, 10).Result;
+                    Assert.AreEqual(10, result.data.Count());
+                    Assert.AreEqual(41, result.totalCount);
+
+                    result = conn.GetPaginationAsync<Test>(2, 3, new { Name = "a" }).Result;
+                    Assert.AreEqual(3, result.data.Count());
+                    Assert.AreEqual(6, result.totalCount);
+
+                    conn.Execute("DROP TABLE Test");
+                    Assert.Pass();
+                }).GetAwaiter().GetResult();
+
+            }
+        }
+
+        [Test]
+        public void IsValidItemsPerPage_CorrectItemContent()
+        {
+            InitialData("Test");
+
+            using (var conn = new NpgsqlConnection(connectionString))
+            {
+                var result = conn.GetPagination<Test>(1, 10);
+                Assert.AreEqual("a", result.data.ToList()[0].Name);
+                Assert.AreEqual("a", result.data.ToList()[1].Name);
+
+                result = conn.GetPagination<Test>(2, 6);
+                Assert.AreEqual("b", result.data.ToList()[0].Name);
+                Assert.AreEqual("c", result.data.ToList()[5].Name);
+
+                conn.Execute("DROP TABLE Test");
+                Assert.Pass();
+            }
+        }
+
+        [Test]
+        public void IsValidItemsPerPage_CorrectItemContent_Async()
+        {
+            InitialData("Test");
+
+            using (var conn = new NpgsqlConnection(connectionString))
+            {
+                Task.Run(async () =>
+                {
+                    var result = conn.GetPagination<Test>(1, 10);
+                    Assert.AreEqual("a", result.data.ToList()[0].Name);
+                    Assert.AreEqual("a", result.data.ToList()[1].Name);
+
+                    result = conn.GetPagination<Test>(2, 6);
+                    Assert.AreEqual("b", result.data.ToList()[0].Name);
+                    Assert.AreEqual("c", result.data.ToList()[5].Name);
+
+                    conn.Execute("DROP TABLE Test");
+                    Assert.Pass();
+                }).GetAwaiter().GetResult();
+            }
+        }
+
+        [Test]
+        public void IsValidOrderByAttribute_OrderbyName()
+        {
+            InitialData("TestOrderBy");
+
+            using (var conn = new NpgsqlConnection(connectionString))
+            {
+                var result = conn.GetPagination<TestOrderBy>(1, 10);
+                Assert.AreEqual("n", result.data.ToList()[0].Name);
+                Assert.AreEqual("o", result.data.ToList()[1].Name);
+
+                result = conn.GetPagination<TestOrderBy>(2, 6);
+                Assert.AreEqual("a", result.data.ToList()[0].Name);
+                Assert.AreEqual("a", result.data.ToList()[5].Name);
+
+                conn.Execute("DROP TABLE Test");
+                Assert.Pass();
+            }
+        }
+
+
+        [Test]
+        public void IsValidOrderByAttribute_OrderbyName_Async()
+        {
+            InitialData("TestOrderBy");
+
+            using (var conn = new NpgsqlConnection(connectionString))
+            {
+                Task.Run(async () =>
+                {
+                    var result = conn.GetPagination<TestOrderBy>(1, 10);
+                    Assert.AreEqual("n", result.data.ToList()[0].Name);
+                    Assert.AreEqual("o", result.data.ToList()[1].Name);
+
+                    result = conn.GetPagination<TestOrderBy>(2, 6);
+                    Assert.AreEqual("a", result.data.ToList()[0].Name);
+                    Assert.AreEqual("a", result.data.ToList()[5].Name);
+
+                    conn.Execute("DROP TABLE Test");
+                    Assert.Pass();
+                }).GetAwaiter().GetResult();
+
             }
         }
     }

@@ -113,7 +113,7 @@ namespace Dapper.ContribPlus
         /// <param name="transaction">The transaction to run under, null (the default) if none</param>
         /// <param name="commandTimeout">Number of seconds before command execution timeout</param>
         /// <returns>Entity of T</returns>
-        public static Task<(int totalCount, IEnumerable<T> data)> GetListByPagingAsync<T>(this IDbConnection connection, int currentPage, int itemsPerPage, object param = null, IDbTransaction transaction = null, int? commandTimeout = null) where T : class
+        public static Task<(int totalCount, IEnumerable<T> data)> GetPaginationAsync<T>(this IDbConnection connection, int currentPage, int itemsPerPage, object param = null, IDbTransaction transaction = null, int? commandTimeout = null) where T : class
         {
             var type = typeof(T);
             var cacheType = typeof(List<T>);
@@ -126,7 +126,7 @@ namespace Dapper.ContribPlus
 
             if (orderByProp == null)
             {
-                orderByCol = GetSingleKey<T>(nameof(GetListByPaging)).Name;
+                orderByCol = GetSingleKey<T>(nameof(GetPaginationAsync)).Name;
             }
             else
             {

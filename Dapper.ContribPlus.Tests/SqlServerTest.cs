@@ -89,11 +89,11 @@ namespace Dapper.ContribPlus.Tests
 
             using (var conn = new SqlConnection(connectionString))
             {
-                var result = conn.GetListByPaging<Test>(2, 10);
+                var result = conn.GetPagination<Test>(2, 10);
                 Assert.AreEqual(10, result.data.Count());
                 Assert.AreEqual(41, result.totalCount);
 
-                result = conn.GetListByPaging<Test>(2, 3, new { Name = "a" });
+                result = conn.GetPagination<Test>(2, 3, new { Name = "a" });
                 Assert.AreEqual(3, result.data.Count());
                 Assert.AreEqual(6, result.totalCount);
 
@@ -112,11 +112,11 @@ namespace Dapper.ContribPlus.Tests
 
                 Task.Run(async () =>
                 {
-                    var result = conn.GetListByPagingAsync<Test>(2, 10).Result;
+                    var result = conn.GetPaginationAsync<Test>(2, 10).Result;
                     Assert.AreEqual(10, result.data.Count());
                     Assert.AreEqual(41, result.totalCount);
 
-                    result = conn.GetListByPaging<Test>(2, 3, new { Name = "a" });
+                    result = conn.GetPaginationAsync<Test>(2, 3, new { Name = "a" }).Result;
                     Assert.AreEqual(3, result.data.Count());
                     Assert.AreEqual(6, result.totalCount);
 
@@ -134,11 +134,11 @@ namespace Dapper.ContribPlus.Tests
 
             using (var conn = new SqlConnection(connectionString))
             {
-                var result = conn.GetListByPaging<Test>(1, 10);
+                var result = conn.GetPagination<Test>(1, 10);
                 Assert.AreEqual("a", result.data.ToList()[0].Name);
                 Assert.AreEqual("a", result.data.ToList()[1].Name);
 
-                result = conn.GetListByPaging<Test>(2, 6);
+                result = conn.GetPagination<Test>(2, 6);
                 Assert.AreEqual("b", result.data.ToList()[0].Name);
                 Assert.AreEqual("c", result.data.ToList()[5].Name);
 
@@ -156,11 +156,11 @@ namespace Dapper.ContribPlus.Tests
             {
                 Task.Run(async () =>
                 {
-                    var result = conn.GetListByPaging<Test>(1, 10);
+                    var result = conn.GetPagination<Test>(1, 10);
                     Assert.AreEqual("a", result.data.ToList()[0].Name);
                     Assert.AreEqual("a", result.data.ToList()[1].Name);
 
-                    result = conn.GetListByPaging<Test>(2, 6);
+                    result = conn.GetPagination<Test>(2, 6);
                     Assert.AreEqual("b", result.data.ToList()[0].Name);
                     Assert.AreEqual("c", result.data.ToList()[5].Name);
 
@@ -177,11 +177,11 @@ namespace Dapper.ContribPlus.Tests
 
             using (var conn = new SqlConnection(connectionString))
             {
-                var result = conn.GetListByPaging<TestOrderBy>(1, 10);
+                var result = conn.GetPagination<TestOrderBy>(1, 10);
                 Assert.AreEqual("n", result.data.ToList()[0].Name);
                 Assert.AreEqual("o", result.data.ToList()[1].Name);
 
-                result = conn.GetListByPaging<TestOrderBy>(2, 6);
+                result = conn.GetPagination<TestOrderBy>(2, 6);
                 Assert.AreEqual("a", result.data.ToList()[0].Name);
                 Assert.AreEqual("a", result.data.ToList()[5].Name);
 
@@ -200,11 +200,11 @@ namespace Dapper.ContribPlus.Tests
             {
                 Task.Run(async () =>
                 {
-                    var result = conn.GetListByPaging<TestOrderBy>(1, 10);
+                    var result = conn.GetPagination<TestOrderBy>(1, 10);
                     Assert.AreEqual("n", result.data.ToList()[0].Name);
                     Assert.AreEqual("o", result.data.ToList()[1].Name);
 
-                    result = conn.GetListByPaging<TestOrderBy>(2, 6);
+                    result = conn.GetPagination<TestOrderBy>(2, 6);
                     Assert.AreEqual("a", result.data.ToList()[0].Name);
                     Assert.AreEqual("a", result.data.ToList()[5].Name);
 
