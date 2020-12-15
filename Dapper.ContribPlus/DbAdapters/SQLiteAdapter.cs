@@ -98,6 +98,6 @@ namespace Dapper.ContribPlus.DbAdapters
         public Task BulkInsertAsync<T>(IDbConnection connection, IEnumerable<T> data, IDbTransaction transaction = null, int batchSize = 0, int bulkCopyTimeout = 30)
         {
             throw new NotImplementedException();
-        }
+        } 
     }
 }
