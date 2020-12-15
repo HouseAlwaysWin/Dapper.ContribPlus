@@ -3,7 +3,9 @@ using Dapper.ContribPlus.DbAdapters;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Data;
+using System.Data.SqlClient;
 using System.Linq;
 using System.Reflection;
 using System.Text;
@@ -157,7 +159,7 @@ namespace Dapper.ContribPlus
         /// </summary>
         public static TableNameMapperDelegate TableNameMapper;
 
-        private static string GetTableName(Type type)
+        internal static string GetTableName(Type type)
         {
             if (TypeTableName.TryGetValue(type.TypeHandle, out string name)) return name;
 
@@ -194,30 +196,6 @@ namespace Dapper.ContribPlus
             return obj.GetType().GetProperties();
         }
 
-        private static string GetConditionSql(
-            List<PropertyInfo> whereProp)
-        {
-            StringBuilder sqlDataBuilder = new StringBuilder();
-            sqlDataBuilder.Append(" WHERE ");
-            for (int i = 0; i < whereProp.Count; i++)
-            {
-                var prop = whereProp[i];
-                sqlDataBuilder.Append(" ");
-
-                sqlDataBuilder.Append(prop.Name);
-
-                sqlDataBuilder.Append("=@");
-
-                sqlDataBuilder.Append(prop.Name);
-
-                if (i != (whereProp.Count - 1))
-                {
-                    sqlDataBuilder.Append(" AND ");
-                }
-            }
-
-            return sqlDataBuilder.ToString();
-        }
 
         /// <summary>
         /// Specifies a custom callback that detects the database type instead of relying on the default strategy (the name of the connection type object).
@@ -225,7 +203,7 @@ namespace Dapper.ContribPlus
         /// </summary>
         public static GetDatabaseTypeDelegate GetDatabaseType;
 
-        private static ISqlAdapter GetFormatter(IDbConnection connection)
+        private static ISqlAdapter GetSqlAdapter(IDbConnection connection)
         {
             var name = GetDatabaseType?.Invoke(connection).ToLower()
                        ?? connection.GetType().Name.ToLower();
@@ -233,6 +211,46 @@ namespace Dapper.ContribPlus
             return AdapterDictionary.TryGetValue(name, out var adapter)
                 ? adapter
                 : DefaultAdapter;
+        }
+
+         /// <summary>
+        /// Transfer data to datatable for bulkInsert
+        /// </summary>
+        /// <param name="data">Insert Data</param>
+        /// <typeparam name="T"></typeparam>
+        /// <returns></returns>
+        internal static DataTable ToDataTable<T>(this IEnumerable<T> data)
+        {
+            PropertyDescriptorCollection properties =
+                TypeDescriptor.GetProperties(typeof(T));
+            DataTable table = new DataTable();
+            foreach (PropertyDescriptor prop in properties)
+                table.Columns.Add(prop.Name, Nullable.GetUnderlyingType(prop.PropertyType) ?? prop.PropertyType);
+            foreach (T item in data)
+            {
+                DataRow row = table.NewRow();
+                foreach (PropertyDescriptor prop in properties)
+                    row[prop.Name] = prop.GetValue(item) ?? DBNull.Value;
+                table.Rows.Add(row);
+            }
+            return table;
+        }
+
+
+
+        /// <summary>
+        /// For bulk insert property's name mapping
+        /// </summary>
+        /// <param name="bulkCopy"></param>
+        /// <typeparam name="T"></typeparam>
+        internal static void ToColumnMapping<T>(this SqlBulkCopy bulkCopy){
+            PropertyDescriptorCollection properties =
+            TypeDescriptor.GetProperties(typeof(T));
+            foreach (PropertyDescriptor prop in properties){
+                var attr = prop.Attributes.OfType<ColumnAttribute>().FirstOrDefault();
+                string columnName = (attr!=null)? attr.Name:prop.Name;
+                bulkCopy.ColumnMappings.Add(prop.Name,columnName);
+            }
         }
 
     }

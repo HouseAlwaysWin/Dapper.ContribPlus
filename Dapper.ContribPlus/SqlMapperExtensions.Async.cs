@@ -102,82 +102,71 @@ namespace Dapper.ContribPlus
         }
 
 
-        /// <summary>
-        /// Returns a list of entites from table "Ts".
+           /// <summary>
+        /// Async returns a paging list of entities from table "T".
         /// Id of T must be marked with [Key] attribute.
-        /// Entities created from interfaces are tracked/intercepted for changes and used by the Update() extension
-        /// for optimal performance.
+        /// T must have an Order attribute
         /// </summary>
         /// <typeparam name="T">Interface or type to create and populate</typeparam>
         /// <param name="connection">Open SqlConnection</param>
         /// <param name="transaction">The transaction to run under, null (the default) if none</param>
         /// <param name="commandTimeout">Number of seconds before command execution timeout</param>
         /// <returns>Entity of T</returns>
-        public static Task<(int totalCount, IEnumerable<T> data)> GetPaginationAsync<T>(this IDbConnection connection, int currentPage, int itemsPerPage, object param = null, IDbTransaction transaction = null, int? commandTimeout = null) where T : class
-        {
-            var type = typeof(T);
-            var cacheType = typeof(List<T>);
-            var paramAllProp = GetAllProperties(param);
-            var orderByProp = OrderByPropertiesCache(type).FirstOrDefault();
-            var name = GetTableName(type);
-            var adapter = GetFormatter(connection);
-            string orderByCol = string.Empty;
-            bool isDesc = false;
+        public static async Task<(IEnumerable<T> list,int total)> GetPaginatedAsync<T> (this IDbConnection connection, int currentPage, int itemsPerPage, IDbTransaction transaction = null, int? commandTimeout = null) where T : class {
 
-            if (orderByProp == null)
-            {
-                orderByCol = GetSingleKey<T>(nameof(GetPaginationAsync)).Name;
-            }
-            else
-            {
-                orderByCol = orderByProp.Name;
-                isDesc = IsOrderByDesc(orderByProp);
-            }
-            StringBuilder cacheStringBuilder = new StringBuilder(string.Format("{0}_{1}_{2}_{3}", type.Name, currentPage, itemsPerPage, orderByCol));
+            var type = typeof (T);
+            var cacheName = nameof (T) + nameof (GetPaginated);
+            var countCache = nameof (GetPaginated);
 
-            StringBuilder sqlDataBuilder = new StringBuilder("SELECT * FROM ");
-
-            sqlDataBuilder.Append(name);
-            if (paramAllProp != null)
-            {
-                foreach (var prop in paramAllProp)
-                {
-                    cacheStringBuilder.Append("_");
-                    cacheStringBuilder.Append(prop.Name);
+            if (!GetSqlQueries.TryGetValue (cacheName, out string sql)) {
+               var key = GetSingleKey<T> (nameof (GetPaginated));
+                var name = GetTableName (type);
+                var orderByProp = OrderByPropertiesCache (type).FirstOrDefault ();
+                bool isDesc = false;
+                if(orderByProp==null){
+                    orderByProp = key;
                 }
-            }
-
-            if (!GetSqlQueries.TryGetValue(cacheStringBuilder.ToString(), out string sql))
-            {
-                string conditionSql = string.Empty;
-                if (paramAllProp.Count() > 0 && param != null)
-                {
-                    conditionSql = GetConditionSql(paramAllProp.ToList());
+                else {
+                    isDesc = IsOrderByDesc (orderByProp);
                 }
 
-                sqlDataBuilder.Append(conditionSql);
-                sqlDataBuilder.AppendLine(adapter.GetPagingSql(orderByCol, currentPage, itemsPerPage, isDesc));
-                sqlDataBuilder.AppendLine(" SELECT COUNT(*) FROM ");
-                sqlDataBuilder.Append(name);
-                sqlDataBuilder.Append(conditionSql);
 
-                sql = sqlDataBuilder.ToString();
-                GetSqlQueries[cacheStringBuilder.ToString()] = sql;
+                sql = GetSqlAdapter (connection).GetPaginatedCmd (name, orderByProp.Name, currentPage, itemsPerPage, isDesc);
+                GetSqlQueries[cacheName] = sql;
             }
 
-
-            int totalCount = 0;
-            IEnumerable<T> data = null;
-            SqlMapper.GridReader result = null;
-            if (!type.IsInterface)
-            {
-                result = connection.QueryMultipleAsync(sql, param, transaction, commandTimeout: commandTimeout).Result;
-                data = result.Read<T>();
-                totalCount = result.Read<int>().First();
-                return Task.FromResult((totalCount, data));
+            if (!GetSqlQueries.TryGetValue (countCache, out string sqlTotal)) {
+                GetSingleKey<T> (nameof (GetPaginated));
+                var name = GetTableName (type);
+                sqlTotal = "SELECT COUNT(*) FROM " + name;
+                GetSqlQueries[countCache] = sqlTotal;
             }
 
-            return GetAllAsyncByPagingImpl<T>(connection, param, transaction, commandTimeout, sql, type);
+            int total = await connection.QueryFirstAsync<int> (sqlTotal, null, transaction, commandTimeout : commandTimeout);
+            IEnumerable<T> result = null;
+            if (!type.IsInterface) {
+                result = await connection.QueryAsync<T> (sql, new { Page = currentPage, ItemsPerPage = itemsPerPage, }, transaction, commandTimeout : commandTimeout);
+                return (result,total);
+            }
+
+            result = await connection.QueryAsync<T> (sql, new { Page = currentPage, ItemsPerPage = itemsPerPage, }, transaction, commandTimeout : commandTimeout);
+            var list = new List<T> ();
+            foreach (IDictionary<string, object> res in result) {
+                var obj = ProxyGenerator.GetInterfaceProxy<T> ();
+                foreach (var property in TypePropertiesCache (type)) {
+                    var val = res[property.Name];
+                    if (val == null) continue;
+                    if (property.PropertyType.IsGenericType && property.PropertyType.GetGenericTypeDefinition () == typeof (Nullable<>)) {
+                        var genericType = Nullable.GetUnderlyingType (property.PropertyType);
+                        if (genericType != null) property.SetValue (obj, Convert.ChangeType (val, genericType), null);
+                    } else {
+                        property.SetValue (obj, Convert.ChangeType (val, property.PropertyType), null);
+                    }
+                }
+                ((IProxy) obj).IsDirty = false; //reset change tracking and return
+                list.Add (obj);
+            }
+            return (list,total);
         }
 
         private static async Task<IEnumerable<T>> GetAllAsyncImpl<T>(IDbConnection connection, IDbTransaction transaction, int? commandTimeout, string sql, Type type) where T : class
@@ -207,39 +196,6 @@ namespace Dapper.ContribPlus
             return list;
         }
 
-        private static async Task<(int totalCount, IEnumerable<T>)> GetAllAsyncByPagingImpl<T>(IDbConnection connection, object param, IDbTransaction transaction, int? commandTimeout, string sql, Type type) where T : class
-        {
-            var result = await connection.QueryMultipleAsync(sql, param).ConfigureAwait(false);
-            var data = result.Read<T>();
-            var totalCount = result.Read<int>().First();
-
-            var list = new List<T>();
-            foreach (IDictionary<string, object> res in data)
-            {
-                var obj = ProxyGenerator.GetInterfaceProxy<T>();
-                foreach (var property in TypePropertiesCache(type))
-                {
-                    var val = res[property.Name];
-                    if (val == null) continue;
-                    if (property.PropertyType.IsGenericType && property.PropertyType.GetGenericTypeDefinition() == typeof(Nullable<>))
-                    {
-                        var genericType = Nullable.GetUnderlyingType(property.PropertyType);
-                        if (genericType != null) property.SetValue(obj, Convert.ChangeType(val, genericType), null);
-                    }
-                    else
-                    {
-                        property.SetValue(obj, Convert.ChangeType(val, property.PropertyType), null);
-                    }
-                }
-                ((IProxy)obj).IsDirty = false;   //reset change tracking and return
-                list.Add(obj);
-            }
-            return (totalCount, list);
-        }
-
-
-
-
 
         /// <summary>
         /// Inserts an entity into table "Ts" asynchronously using Task and returns identity id.
@@ -255,7 +211,7 @@ namespace Dapper.ContribPlus
         int? commandTimeout = null, ISqlAdapter sqlAdapter = null) where T : class
         {
             var type = typeof(T);
-            sqlAdapter = sqlAdapter ?? GetFormatter(connection);
+            sqlAdapter = sqlAdapter ?? GetSqlAdapter(connection);
 
             var isList = false;
             if (type.IsArray)
@@ -363,7 +319,7 @@ namespace Dapper.ContribPlus
             var computedProperties = ComputedPropertiesCache(type);
             var nonIdProps = allProperties.Except(keyProperties.Union(computedProperties)).ToList();
 
-            var adapter = GetFormatter(connection);
+            var adapter = GetSqlAdapter(connection);
 
             for (var i = 0; i < nonIdProps.Count; i++)
             {
@@ -429,7 +385,7 @@ namespace Dapper.ContribPlus
             var sb = new StringBuilder();
             sb.AppendFormat("DELETE FROM {0} WHERE ", name);
 
-            var adapter = GetFormatter(connection);
+            var adapter = GetSqlAdapter(connection);
 
             for (var i = 0; i < allKeyProperties.Count; i++)
             {

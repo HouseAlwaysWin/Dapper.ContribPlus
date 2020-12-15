@@ -132,118 +132,6 @@ namespace Dapper.ContribPlus
             return list;
         }
 
-        /// <summary>
-        /// Returns a  list of pagination entites from table "Ts".
-        /// Id of T must be marked with [Key] attribute.
-        /// Entities created from interfaces are tracked/intercepted for changes and used by the Update() extension
-        /// for optimal performance.
-        /// </summary>
-        /// <typeparam name="T">Interface or type to create and populate</typeparam>
-        /// <param name="connection">Open SqlConnection</param>
-        /// <param name="transaction">The transaction to run under, null (the default) if none</param>
-        /// <param name="commandTimeout">Number of seconds before command execution timeout</param>
-        /// <returns>Entity of T</returns>
-        public static (int totalCount, IEnumerable<T> data) GetPagination<T>(this IDbConnection connection, int currentPage, int itemsPerPage, object param = null, IDbTransaction transaction = null, int? commandTimeout = null) where T : class
-        {
-            var type = typeof(T);
-            var paramAllProp = GetAllProperties(param);
-            var orderByProp = OrderByPropertiesCache(type).FirstOrDefault();
-            var name = GetTableName(type);
-            var adapter = GetFormatter(connection);
-            string orderByCol = string.Empty;
-            bool isDesc = false;
-
-            if (orderByProp == null)
-            {
-                orderByCol = GetSingleKey<T>(nameof(GetPagination)).Name;
-            }
-            else
-            {
-                orderByCol = orderByProp.Name;
-                isDesc = IsOrderByDesc(orderByProp);
-            }
-            StringBuilder cacheStringBuilder = new StringBuilder(string.Format("{0}_{1}_{2}_{3}", type.Name, currentPage, itemsPerPage, orderByCol));
-            StringBuilder cacheCountStringBuilder = new StringBuilder(string.Format("{0}_{1}_{2}_{3}_count", type.Name, currentPage, itemsPerPage, orderByCol));
-
-            StringBuilder sqlDataBuilder = new StringBuilder("SELECT * FROM ");
-            StringBuilder sqlDataCountBuilder = new StringBuilder("SELECT COUNT(*) FROM ");
-            sqlDataBuilder.Append(name);
-            if (paramAllProp != null)
-            {
-                foreach (var prop in paramAllProp)
-                {
-                    cacheStringBuilder.Append("_");
-                    cacheStringBuilder.Append(prop.Name);
-                }
-            }
-
-            string conditionSql = string.Empty;
-            if (!GetSqlQueries.TryGetValue(cacheStringBuilder.ToString(), out string sql))
-            {
-                if (paramAllProp.Count() > 0 && param != null)
-                {
-                    conditionSql = GetConditionSql(paramAllProp.ToList());
-                }
-
-                sqlDataBuilder.Append(conditionSql);
-                sqlDataBuilder.AppendLine(adapter.GetPagingSql(orderByCol, currentPage, itemsPerPage, isDesc));
-
-                sql = sqlDataBuilder.ToString();
-                GetSqlQueries[cacheStringBuilder.ToString()] = sql;
-
-            }
-
-            if (!GetSqlQueries.TryGetValue(cacheCountStringBuilder.ToString(), out string countSql))
-            {
-                if (paramAllProp.Count() > 0 && param != null)
-                {
-                    conditionSql = GetConditionSql(paramAllProp.ToList());
-                }
-                sqlDataCountBuilder.Append(name);
-                sqlDataCountBuilder.Append(conditionSql);
-                countSql = sqlDataCountBuilder.ToString();
-                GetSqlQueries[sqlDataCountBuilder.ToString()] = countSql;
-            }
-
-
-            int totalCount = 0;
-            IEnumerable<T> data = null;
-
-            if (!type.IsInterface)
-            {
-                data = connection.Query<T>(sql, param, transaction, commandTimeout: commandTimeout);
-                totalCount = connection.QueryFirst<int>(countSql, param, transaction, commandTimeout: commandTimeout);
-
-                return (totalCount, data);
-            }
-
-            data = connection.Query<T>(sql, param, transaction, commandTimeout: commandTimeout);
-            totalCount = connection.QueryFirst<int>(countSql, param, transaction, commandTimeout: commandTimeout);
-
-            var list = new List<T>();
-            foreach (IDictionary<string, object> res in data)
-            {
-                var obj = ProxyGenerator.GetInterfaceProxy<T>();
-                foreach (var property in TypePropertiesCache(type))
-                {
-                    var val = res[property.Name];
-                    if (val == null) continue;
-                    if (property.PropertyType.IsGenericType && property.PropertyType.GetGenericTypeDefinition() == typeof(Nullable<>))
-                    {
-                        var genericType = Nullable.GetUnderlyingType(property.PropertyType);
-                        if (genericType != null) property.SetValue(obj, Convert.ChangeType(val, genericType), null);
-                    }
-                    else
-                    {
-                        property.SetValue(obj, Convert.ChangeType(val, property.PropertyType), null);
-                    }
-                }
-                ((IProxy)obj).IsDirty = false;   //reset change tracking and return
-                list.Add(obj);
-            }
-            return (totalCount, list);
-        }
-
 
         /// <summary>
         /// Inserts an entity into table "Ts" and returns identity id or number of inserted rows if inserting a list.
@@ -286,7 +174,7 @@ namespace Dapper.ContribPlus
             var computedProperties = ComputedPropertiesCache(type);
             var allPropertiesExceptKeyAndComputed = allProperties.Except(keyProperties.Union(computedProperties)).ToList();
 
-            var adapter = GetFormatter(connection);
+            var adapter = GetSqlAdapter(connection);
 
             for (var i = 0; i < allPropertiesExceptKeyAndComputed.Count; i++)
             {
@@ -374,7 +262,7 @@ namespace Dapper.ContribPlus
             var computedProperties = ComputedPropertiesCache(type);
             var nonIdProps = allProperties.Except(keyProperties.Union(computedProperties)).ToList();
 
-            var adapter = GetFormatter(connection);
+            var adapter = GetSqlAdapter(connection);
 
             for (var i = 0; i < nonIdProps.Count; i++)
             {
@@ -441,7 +329,7 @@ namespace Dapper.ContribPlus
             var sb = new StringBuilder();
             sb.AppendFormat("DELETE FROM {0} WHERE ", name);
 
-            var adapter = GetFormatter(connection);
+            var adapter = GetSqlAdapter(connection);
 
             for (var i = 0; i < keyProperties.Count; i++)
             {
@@ -473,7 +361,97 @@ namespace Dapper.ContribPlus
             return deleted > 0;
         }
 
+        /// <summary>
+        /// Returns a paging list of entities from table "T".
+        /// Id of T must be marked with [Key] attribute.
+        /// T must have an Order attribute
+        /// </summary>
+        /// <typeparam name="T">Interface or type to create and populate</typeparam>
+        /// <param name="connection">Open SqlConnection</param>
+        /// <param name="transaction">The transaction to run under, null (the default) if none</param>
+        /// <param name="commandTimeout">Number of seconds before command execution timeout</param>
+        /// <returns>Entity of T</returns>
+        public static IEnumerable<T> GetPaginated<T> (this IDbConnection connection, ref int total, int currentPage, int itemsPerPage, IDbTransaction transaction = null, int? commandTimeout = null) where T : class {
+            var type = typeof (T);
+            var cacheName = nameof (T) + nameof (GetPaginated);
+            var countCache = nameof (GetPaginated);
+
+            if (!GetSqlQueries.TryGetValue (cacheName, out string sql)) {
+                var key = GetSingleKey<T> (nameof (GetPaginated));
+                var name = GetTableName (type);
+                var orderByProp = OrderByPropertiesCache (type).FirstOrDefault ();
+                bool isDesc = false;
+                if(orderByProp==null){
+                    orderByProp = key;
+                }
+                else {
+                    isDesc = IsOrderByDesc (orderByProp);
+                }
+
+                sql = GetSqlAdapter (connection).GetPaginatedCmd (name, orderByProp.Name, currentPage, itemsPerPage, isDesc);
+                GetSqlQueries[cacheName] = sql;
+            }
+
+            if (!GetSqlQueries.TryGetValue (countCache, out string sqlTotal)) {
+                GetSingleKey<T> (nameof (GetPaginated));
+                var name = GetTableName (type);
+
+                sqlTotal = "SELECT COUNT(*) FROM " + name;
+                GetSqlQueries[countCache] = sqlTotal;
+            }
+
+            total = connection.QueryFirst<int> (sqlTotal, null, transaction, commandTimeout : commandTimeout);
+            if (!type.IsInterface) {
+                return connection.Query<T> (sql, new { Page = currentPage, ItemsPerPage = itemsPerPage, }, transaction, commandTimeout : commandTimeout);
+            }
+
+            var result = connection.Query<T> (sql, new { Page = currentPage, ItemsPerPage = itemsPerPage, }, transaction, commandTimeout : commandTimeout);
+            var list = new List<T> ();
+            foreach (IDictionary<string, object> res in result) {
+                var obj = ProxyGenerator.GetInterfaceProxy<T> ();
+                foreach (var property in TypePropertiesCache (type)) {
+                    var val = res[property.Name];
+                    if (val == null) continue;
+                    if (property.PropertyType.IsGenericType && property.PropertyType.GetGenericTypeDefinition () == typeof (Nullable<>)) {
+                        var genericType = Nullable.GetUnderlyingType (property.PropertyType);
+                        if (genericType != null) property.SetValue (obj, Convert.ChangeType (val, genericType), null);
+                    } else {
+                        property.SetValue (obj, Convert.ChangeType (val, property.PropertyType), null);
+                    }
+                }
+                ((IProxy) obj).IsDirty = false; //reset change tracking and return
+                list.Add (obj);
+            }
+            return list;
+        }
 
 
+         /// <summary>
+        /// Bulk Insert
+        /// </summary>
+        /// <param name="connection">Open SqlConnection</param>
+        /// <param name="data">Insert data</param>
+        /// <param name="transaction">The transaction to run under, null (the default) if none</param>
+        /// <param name="batchSize">number of once bulk insert </param>
+        /// <param name="bulkCopyTimeout">time out</param>
+        /// <typeparam name="T"></typeparam>
+        public static void BulkInsert<T>(this IDbConnection connection,IEnumerable<T> data,IDbTransaction transaction=null, int batchSize = 0, int bulkCopyTimeout = 30){
+            var adapter = GetSqlAdapter(connection);
+            adapter.BulkInsert<T>(connection,data,transaction,batchSize,bulkCopyTimeout);
+        }
+
+             /// <summary>
+        /// Async Bulk Insert 
+        /// </summary>
+        /// <param name="connection">Open SqlConnection</param>
+        /// <param name="data">Insert data</param>
+        /// <param name="transaction">The transaction to run under, null (the default) if none</param>
+        /// <param name="batchSize">number of once bulk insert </param>
+        /// <param name="bulkCopyTimeout">time out</param>
+        /// <typeparam name="T"></typeparam>
+        public static async Task BulkInsertAsync<T>(this IDbConnection connection,IEnumerable<T> data,IDbTransaction transaction=null, int batchSize = 0, int bulkCopyTimeout = 30){
+            var adapter = GetSqlAdapter(connection);
+            await adapter.BulkInsertAsync<T>(connection,data,transaction,batchSize,bulkCopyTimeout);
+        }
     }
 }

@@ -50,6 +50,19 @@ namespace Dapper.ContribPlus.DbAdapters
         /// <param name="columnName">The column name.</param>
         void AppendColumnNameEqualsValue(StringBuilder sb, string columnName);
 
-        string GetPagingSql(string column, int currentPage, int itemsPerPage, bool isDesc);
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="tableName"></param>
+        /// <param name="orderBy"></param>
+        /// <param name="currentPage"></param>
+        /// <param name="itemsPerPage"></param>
+        /// <param name="isDesc"></param>
+        /// <returns></returns>
+        string GetPaginatedCmd (string tableName, string orderBy, int currentPage, int itemsPerPage, bool isDesc);
+        void BulkInsert<T>(IDbConnection connection,IEnumerable<T> data,IDbTransaction transaction=null, int batchSize = 0, int bulkCopyTimeout = 30);
+        Task BulkInsertAsync<T>(IDbConnection connection,IEnumerable<T> data,IDbTransaction transaction=null, int batchSize = 0, int bulkCopyTimeout = 30);
+
     }
 }

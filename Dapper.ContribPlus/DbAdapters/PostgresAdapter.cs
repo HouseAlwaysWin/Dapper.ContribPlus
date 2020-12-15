@@ -136,5 +136,22 @@ namespace Dapper.ContribPlus.DbAdapters
             int totalItems = (currentPage - 1) * itemsPerPage;
             return $" ORDER BY {column} {desc} OFFSET {totalItems} LIMIT {itemsPerPage};";
         }
+
+        public string GetPaginatedCmd(string tableName, string orderBy, int currentPage, int itemsPerPage, bool isDesc)
+        {
+             string desc = isDesc ? "DESC" : "ASC";
+             int totalItems = (currentPage - 1) * itemsPerPage;
+             return $"SELECT * FROM {tableName} ORDER BY {orderBy} {desc} OFFSET {totalItems} LIMIT {itemsPerPage}";
+        }
+
+        public void BulkInsert<T>(IDbConnection connection, IEnumerable<T> data, IDbTransaction transaction = null, int batchSize = 0, int bulkCopyTimeout = 30)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task BulkInsertAsync<T>(IDbConnection connection, IEnumerable<T> data, IDbTransaction transaction = null, int batchSize = 0, int bulkCopyTimeout = 30)
+        {
+            throw new NotImplementedException();
+        }
     }
 }

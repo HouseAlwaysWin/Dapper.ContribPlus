@@ -95,9 +95,21 @@ namespace Dapper.ContribPlus.DbAdapters
             sb.AppendFormat("[{0}] = @{1}", columnName, columnName);
         }
 
-        public string GetPagingSql(string column, int currentPage, int itemsPerPage, bool isDesc)
+        public string GetPaginatedCmd(string tableName, string orderBy, int currentPage, int itemsPerPage, bool isDesc)
         {
             throw new NotImplementedException();
         }
+
+        public void BulkInsert<T>(IDbConnection connection, IEnumerable<T> data, IDbTransaction transaction = null, int batchSize = 0, int bulkCopyTimeout = 30)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task BulkInsertAsync<T>(IDbConnection connection, IEnumerable<T> data, IDbTransaction transaction = null, int batchSize = 0, int bulkCopyTimeout = 30)
+        {
+            throw new NotImplementedException();
+        }
+
+
     }
 }

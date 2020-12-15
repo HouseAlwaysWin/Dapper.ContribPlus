@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Data.SqlClient;
 using System.Linq;
 using System.Reflection;
 using System.Text;
@@ -76,8 +77,6 @@ namespace Dapper.ContribPlus.DbAdapters
 
 
 
-
-
         /// <summary>
         /// Adds the name of a column.
         /// </summary>
@@ -98,11 +97,42 @@ namespace Dapper.ContribPlus.DbAdapters
             sb.AppendFormat("[{0}] = @{1}", columnName, columnName);
         }
 
-        public string GetPagingSql(string column, int currentPage, int itemsPerPage, bool isDesc)
+
+        public string GetPaginatedCmd(string tableName, string orderBy, int currentPage, int itemsPerPage, bool isDesc)
         {
             string desc = isDesc ? "DESC" : "ASC";
-            int totalItems = (currentPage - 1) * itemsPerPage;
-            return $" ORDER BY {column} {desc} OFFSET {totalItems} ROWS FETCH NEXT {itemsPerPage} ROWS ONLY ";
+                int totalItems = (currentPage - 1) * itemsPerPage;
+                return $"SELECT * FROM {tableName} ORDER BY {orderBy} {desc} OFFSET {totalItems} ROWS FETCH NEXT {itemsPerPage} ROWS ONLY ";
+        }
+
+        public void BulkInsert<T>(IDbConnection connection, IEnumerable<T> data, IDbTransaction transaction = null, int batchSize = 0, int bulkCopyTimeout = 30)
+        {
+                var type = typeof (T);
+                var tableName = SqlMapperExtensions.GetTableName(type);
+                DataTable dataTables = data.ToDataTable();
+                using (var bulkCopy = new SqlBulkCopy((SqlConnection)connection, SqlBulkCopyOptions.Default, (SqlTransaction)transaction))
+                {
+                    bulkCopy.BulkCopyTimeout = bulkCopyTimeout;
+                    bulkCopy.BatchSize = batchSize;
+                    bulkCopy.DestinationTableName = tableName;
+                    bulkCopy.ToColumnMapping<T>();
+                    bulkCopy.WriteToServer(dataTables);
+                }
+        }
+
+        public async Task BulkInsertAsync<T>(IDbConnection connection, IEnumerable<T> data, IDbTransaction transaction = null, int batchSize = 0, int bulkCopyTimeout = 30)
+        {
+             var type = typeof (T);
+                var tableName = SqlMapperExtensions.GetTableName(type);
+                DataTable dataTables = data.ToDataTable();
+                using (var bulkCopy = new SqlBulkCopy((SqlConnection)connection, SqlBulkCopyOptions.Default, (SqlTransaction)transaction))
+                {
+                    bulkCopy.BulkCopyTimeout = bulkCopyTimeout;
+                    bulkCopy.BatchSize = batchSize;
+                    bulkCopy.DestinationTableName = tableName;
+                    bulkCopy.ToColumnMapping<T>();
+                    await bulkCopy.WriteToServerAsync(dataTables);
+                }
         }
     }
 }

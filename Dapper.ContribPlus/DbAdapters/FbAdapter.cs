@@ -96,5 +96,20 @@ namespace Dapper.ContribPlus.DbAdapters
         {
             throw new NotImplementedException();
         }
+
+        public string GetPaginatedCmd(string tableName, string orderBy, int currentPage, int itemsPerPage, bool isDesc)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void BulkInsert<T>(IDbConnection connection, IEnumerable<T> data, IDbTransaction transaction = null, int batchSize = 0, int bulkCopyTimeout = 30)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task BulkInsertAsync<T>(IDbConnection connection, IEnumerable<T> data, IDbTransaction transaction = null, int batchSize = 0, int bulkCopyTimeout = 30)
+        {
+            throw new NotImplementedException();
+        }
     }
 }
