@@ -1,0 +1,19 @@
+version: "3.8"
+services:
+  mssqldb:
+    build:
+      context: .
+      dockerfile: Dockerfile.mssql
+    container_name: mssqldb
+    ports:
+      - "1500:1433"
+    environment:
+      SA_PASSWORD: "Your_password123"
+      ACCEPT_EULA: "Y"
+    deploy:
+      resources:
+        limits:
+          cpus: "0.1"
+          memory: 1500M
+        reservations:
+          memory: 1000M
